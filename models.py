@@ -56,7 +56,8 @@ class User(Base):
     role: Mapped[UserRole] = mapped_column(
         SAEnum(UserRole)
     )
-    email: Mapped[str]
+    email: Mapped[str] = mapped_column(unique=True)
+    password_hash: Mapped[str]
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=text("now()")
     )
@@ -67,6 +68,7 @@ class Clubs(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str]
+    description: Mapped[str]
     status: Mapped[ClubStatus] = mapped_column(
         SAEnum(ClubStatus)
     )
@@ -105,6 +107,38 @@ class Requirement(Base):
     reviewer_note: Mapped[str | None]
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=text("now()"), onupdate=text("now()")
+    )
+
+
+class ClubEvent(Base):
+    __tablename__ = "club_events"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    club_id: Mapped[int] = mapped_column(
+        ForeignKey("clubs.id", ondelete="CASCADE")
+    )
+    actor_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id")
+    )
+    # TODO: only "created" is written so far. Later tickets append the rest of the
+    # vocabulary: "submitted", "changes_requested", "approved", "rejected", plus the
+    # per-requirement ones ("requirement_submitted"/"requirement_approved"/
+    # "requirement_rejected") which fire while the club itself stays at one status.
+    # Keep the verb generic and add a nullable requirement_id FK to say WHICH one --
+    # don't bake the requirement into the string (i.e. not "exec_list_rejected"), or
+    # this becomes 6 types x 3 outcomes = 18 values and "all rejections" turns into a
+    # LIKE match instead of an indexed equality.
+    # Left as str, not an Enum, until that vocabulary stops growing -- each new value
+    # would otherwise cost an ALTER TYPE migration. Convert once it settles.
+    event_type: Mapped[str]
+    from_status: Mapped[ClubStatus | None] = mapped_column(
+        SAEnum(ClubStatus)
+    )
+    to_status: Mapped[ClubStatus] = mapped_column(
+        SAEnum(ClubStatus)
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=text("now()")
     )
 
     
