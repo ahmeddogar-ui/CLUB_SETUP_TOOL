@@ -1,6 +1,6 @@
 from pydantic import BaseModel, EmailStr, Field
 
-from models import UserRole
+from app.models import UserRole
 
 
 class UserRegisterRequest(BaseModel):

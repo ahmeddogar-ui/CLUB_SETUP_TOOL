@@ -1,8 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from auth.security import get_current_user
-from database import DbSession
-from models import (
+from app.core.security import get_current_user
+from app.database import DbSession
+from app.models import (
     ClubEvent,
     Clubs,
     ClubStatus,
@@ -13,9 +13,9 @@ from models import (
     User,
     UserRole,
 )
-from schemas import ClubCreateRequest, ClubOut, ClubUpdateRequest
+from app.schemas import ClubCreateRequest, ClubOut, ClubUpdateRequest
 
-router = APIRouter()
+router = APIRouter(prefix="/clubs", tags=["clubs"])
 
 INITIAL_REQUIREMENTS = (
     (RequirementType.constitution, RequirementKind.document),
@@ -29,7 +29,7 @@ INITIAL_REQUIREMENTS = (
 EDITABLE_STATUSES = (ClubStatus.drafting, ClubStatus.changes_requested)
 
 
-@router.post("/clubs", response_model=ClubOut, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=ClubOut, status_code=status.HTTP_201_CREATED)
 def create_club(
     payload: ClubCreateRequest,
     db: DbSession,
@@ -42,8 +42,7 @@ def create_club(
         status=ClubStatus.drafting,
     )
     db.add(club)
-    db.commit()
-    db.refresh(club)
+    db.flush()
 
     for requirement_type, kind in INITIAL_REQUIREMENTS:
         db.add(
@@ -70,7 +69,7 @@ def create_club(
     return club
 
 
-@router.get("/clubs/{club_id}", response_model=ClubOut)
+@router.get("/{club_id}", response_model=ClubOut)
 def get_club(
     club_id: int,
     db: DbSession,
@@ -91,7 +90,7 @@ def get_club(
     return club
 
 
-@router.patch("/clubs/{club_id}", response_model=ClubOut)
+@router.patch("/{club_id}", response_model=ClubOut)
 def update_club(
     club_id: int,
     payload: ClubUpdateRequest,

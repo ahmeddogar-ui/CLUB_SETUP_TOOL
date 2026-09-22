@@ -1,20 +1,21 @@
-from dotenv import load_dotenv
 from sqlalchemy import create_engine
-import os 
 from typing import Annotated
 from fastapi import Depends
 from sqlalchemy.orm import Session, sessionmaker
-load_dotenv()
+
+from app.core.config import settings
 
 
-DATABASE_URL = os.getenv("DATABASE_URL")
-engine = create_engine(DATABASE_URL)
+engine = create_engine(settings.DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 def get_db():
     db = SessionLocal()
     try:
         yield db
+    except Exception:
+        db.rollback()
+        raise
     finally:
         db.close()
 

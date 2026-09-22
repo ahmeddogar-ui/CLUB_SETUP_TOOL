@@ -26,6 +26,7 @@ class UserRole(str, Enum):
 class ClubStatus(str, Enum):
     drafting = "drafting"
     submitted = "submitted"
+    under_review = "under_review"
     changes_requested = "changes_requested"
     approved = "approved"
     rejected = "rejected"
