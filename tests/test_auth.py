@@ -97,13 +97,21 @@ def test_login_nonexistent_email_is_same_generic_401(client):
 
 
 def test_login_email_matching_is_consistent_by_case(client):
-    """Current behavior: email matching is a plain equality check (no
-    case-folding), so a different-case login is treated as a different,
-    nonexistent user -- consistently 401, never a silent partial match.
-    """
-    register(client, email="Ada@Example.com", password="hunter2")
+    """Current behavior: email matching is a plain equality check on the
+    stored value (no case-folding), so a different-case login is treated as a
+    different, nonexistent user -- consistently 401, never a silent partial
+    match.
 
-    same_case = login(client, "Ada@Example.com", "hunter2")
+    Domain kept lowercase throughout deliberately: EmailStr (via
+    email-validator) normalizes the *domain* to lowercase on register --
+    local part is left as-is -- so a mixed-case domain here would be
+    comparing against a value that was silently rewritten on the way in,
+    which is a different behavior than the local-part case-sensitivity this
+    test is actually after.
+    """
+    register(client, email="Ada@example.com", password="hunter2")
+
+    same_case = login(client, "Ada@example.com", "hunter2")
     different_case = login(client, "ada@example.com", "hunter2")
 
     assert same_case.status_code == 200
