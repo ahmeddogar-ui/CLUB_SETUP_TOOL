@@ -121,25 +121,32 @@ class ClubEvent(Base):
     actor_id: Mapped[int] = mapped_column(
         ForeignKey("users.id")
     )
-    # TODO: only "created" is written so far. Later tickets append the rest of the
-    # vocabulary: "submitted", "changes_requested", "approved", "rejected", plus the
-    # per-requirement ones ("requirement_submitted"/"requirement_approved"/
-    # "requirement_rejected") which fire while the club itself stays at one status.
-    # Keep the verb generic and add a nullable requirement_id FK to say WHICH one --
-    # don't bake the requirement into the string (i.e. not "exec_list_rejected"), or
+    # Club-level: "created", "submitted", "review_started", "changes_requested",
+    # "resubmitted", "approved", "rejected".
+    # Requirement-level: "requirement_submitted", "requirement_approved",
+    # "requirement_rejected". These fire while the club itself stays at one status
+    # (from_status == to_status) and use requirement_id to say WHICH requirement --
+    # the requirement is never baked into the string (not "exec_list_rejected"), or
     # this becomes 6 types x 3 outcomes = 18 values and "all rejections" turns into a
-    # LIKE match instead of an indexed equality.
+    # LIKE match instead of an equality.
     # Left as str, not an Enum, until that vocabulary stops growing -- each new value
     # would otherwise cost an ALTER TYPE migration. Convert once it settles.
     event_type: Mapped[str]
+    requirement_id: Mapped[int | None] = mapped_column(
+        ForeignKey("requirements.id")
+    )
+    # For requirement_submitted: the exact link provided, so the history shows which
+    # version of a document each later approve/reject decision was about.
+    link_url: Mapped[str | None]
     from_status: Mapped[ClubStatus | None] = mapped_column(
         SAEnum(ClubStatus)
     )
     to_status: Mapped[ClubStatus] = mapped_column(
         SAEnum(ClubStatus)
     )
+    # Reviewer's reason for changes_requested / rejected. Stored per event so each
+    # review round keeps its own note instead of a later one overwriting it.
+    note: Mapped[str | None]
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=text("now()")
     )
-
-    

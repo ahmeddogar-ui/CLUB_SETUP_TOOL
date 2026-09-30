@@ -5,6 +5,7 @@ from fastapi import APIRouter
 from app.database import DbSession
 from app.routers.clubs import router as clubs_router
 from app.routers.auth import router as auth_router
+from app.routers.requirements import router as requirements_router
 
 app = FastAPI()
 
@@ -21,3 +22,4 @@ async def db_health(db: DbSession):
 
 app.include_router(clubs_router)
 app.include_router(auth_router)
+app.include_router(requirements_router)

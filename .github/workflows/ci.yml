@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: club_setup_tool_test
+        ports:
+          - 5432:5432
+        # Wait for Postgres to actually accept connections before any step runs --
+        # the container starts before the server inside it is ready to accept them.
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      # Must contain "test" -- tests/conftest.py refuses to run otherwise, as a
+      # guard against ever pointing the suite at a real database by mistake.
+      TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/club_setup_tool_test
+      SECRET_KEY: ci-secret-key-not-used-outside-this-workflow-32b
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          version: "latest"
+          enable-cache: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version-file: ".python-version"
+
+      - name: Install dependencies
+        run: uv sync --locked
+
+      - name: Run pytest
+        run: uv run pytest -v

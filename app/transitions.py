@@ -119,8 +119,17 @@ def attempt_transition(
             event_type=_event_for(from_status, to_status),
             from_status=from_status,
             to_status=to_status,
+            note=note.strip() if note and note.strip() else None,
         )
     )
 
-    db.commit()
+    # Status change and event row go out in one commit; if either write fails,
+    # roll both back so the club's status and its history can never disagree.
+    try:
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+
+    db.refresh(club)
     return club
