@@ -33,6 +33,11 @@ from app.templates import templates
 router = APIRouter(tags=["web"])
 
 
+@router.get("/", include_in_schema=False)
+def home():
+    return RedirectResponse("/dashboard", status_code=status.HTTP_303_SEE_OTHER)
+
+
 @router.get("/login")
 def login_page(
     request: Request,

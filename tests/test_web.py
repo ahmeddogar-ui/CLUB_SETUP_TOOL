@@ -321,3 +321,8 @@ def test_full_journey_lead_submits_admin_approves(client, db, lead, admin):
     assert "approved" in page
     for event in ("created", "submitted", "review_started", "requirement_approved"):
         assert event in page
+
+
+def test_root_redirects_to_dashboard_then_login(client):
+    assert client.get("/", **NO_FOLLOW).headers["location"] == "/dashboard"
+    assert client.get("/", follow_redirects=True).url.path == "/login"
