@@ -7,8 +7,8 @@ body explode if it's ever reached, proving the request never got that far.
 
 import pytest
 
-import app.routers.clubs as clubs_router
-import app.routers.requirements as requirements_router
+import app.services.clubs as clubs_service
+import app.services.requirements as requirements_service
 from tests.conftest import auth, create_club, provide_all_documents
 
 ADMIN_ROUTES = [
@@ -27,9 +27,10 @@ def _must_not_run(*args, **kwargs):
 
 @pytest.fixture
 def body_must_not_run(monkeypatch):
-    monkeypatch.setattr(clubs_router, "get_club_or_404", _must_not_run)
-    monkeypatch.setattr(clubs_router, "attempt_transition", _must_not_run)
-    monkeypatch.setattr(requirements_router, "get_club_or_404", _must_not_run)
+    # The route bodies are thin wrappers now; the work they'd do lives in the services.
+    monkeypatch.setattr(clubs_service, "get_club_or_404", _must_not_run)
+    monkeypatch.setattr(clubs_service, "attempt_transition", _must_not_run)
+    monkeypatch.setattr(requirements_service, "get_club_or_404", _must_not_run)
 
 
 @pytest.mark.parametrize(("action", "body"), ADMIN_ROUTES)

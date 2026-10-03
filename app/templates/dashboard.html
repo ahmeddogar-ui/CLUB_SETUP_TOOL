@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+
+{% block title %}My clubs{% endblock %}
+
+{% block content %}
+  <h1>My clubs</h1>
+
+  <p><a href="/club/new">+ New club</a></p>
+
+  {% if clubs %}
+    <table>
+      <tr>
+        <th>Name</th>
+        <th>Status</th>
+      </tr>
+      {% for club in clubs %}
+        <tr>
+          <td><a href="/club/{{ club.id }}">{{ club.name }}</a></td>
+          <td><span class="status">{{ club.status.value }}</span></td>
+        </tr>
+      {% endfor %}
+    </table>
+  {% else %}
+    <p>You haven't started a club yet.</p>
+  {% endif %}
+{% endblock %}

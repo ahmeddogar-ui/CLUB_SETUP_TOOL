@@ -1,5 +1,5 @@
 from sqlalchemy import create_engine
-from typing import Annotated
+from typing import Annotated, TypeAlias
 from fastapi import Depends
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -19,4 +19,4 @@ def get_db():
     finally:
         db.close()
 
-DbSession = Annotated[Session, Depends(get_db)]
+DbSession: TypeAlias = Annotated[Session, Depends(get_db)]

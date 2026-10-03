@@ -141,7 +141,11 @@ def test_malformed_token_is_401(client):
 
 def test_tampered_token_is_401(client, lead):
     token = auth(lead)["Authorization"].split(" ")[1]
-    tampered = token[:-1] + ("a" if token[-1] != "a" else "b")
+    # Flip the FIRST signature character: the last one carries only 4 meaningful
+    # bits of base64, so changing it can leave the decoded signature identical.
+    header, payload, signature = token.split(".")
+    flipped = "a" if signature[0] != "a" else "b"
+    tampered = ".".join([header, payload, flipped + signature[1:]])
 
     response = client.get("/auth/me", headers={"Authorization": f"Bearer {tampered}"})
     assert response.status_code == 401

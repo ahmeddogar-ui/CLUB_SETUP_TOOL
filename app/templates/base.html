@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}ClubRegistry{% endblock %}</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 760px; margin: 2rem auto; padding: 0 1rem; color: #1a1a1a; }
+    nav { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; padding-bottom: 1rem; border-bottom: 1px solid #ddd; }
+    nav a { margin-left: 1rem; }
+    a.brand { font-weight: 700; text-decoration: none; color: inherit; }
+    .error { color: #b00020; background: #fdecea; padding: 0.75rem 1rem; border-radius: 4px; margin-bottom: 1rem; }
+    .success { color: #1e7e34; background: #e9f7ef; padding: 0.75rem 1rem; border-radius: 4px; margin-bottom: 1rem; }
+    .status { display: inline-block; padding: 0.15rem 0.5rem; border-radius: 4px; font-size: 0.85rem; background: #eee; }
+    table { width: 100%; border-collapse: collapse; margin: 1rem 0; }
+    th, td { text-align: left; padding: 0.5rem; border-bottom: 1px solid #eee; }
+    label { display: block; margin-top: 0.75rem; font-weight: 600; }
+    input, textarea { width: 100%; padding: 0.5rem; margin-top: 0.25rem; box-sizing: border-box; font: inherit; }
+    button { margin-top: 1rem; padding: 0.5rem 1.25rem; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <nav>
+    <a class="brand" href="/dashboard">ClubRegistry</a>
+    <div>
+      {% if current_user %}
+        <span>{{ current_user.name }} ({{ current_user.role.value }})</span>
+        <form method="post" action="/logout" style="display:inline">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
+          <button type="submit" style="margin:0 0 0 1rem">Log out</button>
+        </form>
+      {% else %}
+        <a href="/login">Log in</a>
+        <a href="/register">Register</a>
+      {% endif %}
+    </div>
+  </nav>
+  {% block content %}{% endblock %}
+</body>
+</html>

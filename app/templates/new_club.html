@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+
+{% block title %}New club{% endblock %}
+
+{% block content %}
+  <h1>New club</h1>
+
+  {% if error %}
+    <p class="error">{{ error }}</p>
+  {% endif %}
+
+  <form method="post" action="/club/new">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
+    <label for="name">Name</label>
+    <input type="text" id="name" name="name" value="{{ name or '' }}" required>
+
+    <label for="description">Description</label>
+    <textarea id="description" name="description" rows="4">{{ description or '' }}</textarea>
+
+    <button type="submit">Create club</button>
+  </form>
+{% endblock %}
