@@ -3,112 +3,122 @@
 {% block title %}{{ club.name }}{% endblock %}
 
 {% block content %}
-  <h1>{{ club.name }} <span class="status">{{ club.status.value }}</span></h1>
-  <p>{{ club.description }}</p>
+  <div class="page-head">
+    <h1>{{ club.name }} <span class="status status-{{ club.status.value }}">{{ club.status.value.replace("_", " ") }}</span></h1>
+  </div>
+  <p class="lead">{{ club.description }}</p>
 
   {% if error %}
     <p class="error">{{ error }}</p>
   {% endif %}
 
-  <h2>Requirements</h2>
-  <table>
-    <tr>
-      <th>Requirement</th>
-      <th>Kind</th>
-      <th>Status</th>
-      <th>Link</th>
-      {% if is_admin and club.status.value == "under_review" %}<th>Review</th>{% endif %}
-    </tr>
-    {% for requirement in requirements %}
-      <tr>
-        <td>{{ requirement.requirement_type.value }}</td>
-        <td>{{ requirement.kind.value }}</td>
-        <td>
-          <span class="status">{{ requirement.status.value }}</span>
-          {% if requirement.reviewer_note %}<br><small>{{ requirement.reviewer_note }}</small>{% endif %}
-        </td>
-        <td>
-          {% if requirement.kind.value == "document" %}
-            {% if editable %}
-              <form method="post" action="/club/{{ club.id }}/requirements/{{ requirement.requirement_type.value }}/link">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
-                <input type="url" name="link_url" value="{{ requirement.link_url or '' }}" placeholder="https://..." required>
-                <button type="submit">Save</button>
-              </form>
-            {% elif requirement.link_url %}
-              <a href="{{ requirement.link_url }}">{{ requirement.link_url }}</a>
-            {% else %}
-              &mdash;
-            {% endif %}
-          {% else %}
-            (verified by admin)
-          {% endif %}
-        </td>
-        {% if is_admin and club.status.value == "under_review" %}
-          <td>
-            <form method="post">
-              <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
-              <input type="text" name="note" placeholder="Note (required to reject)">
-              <button type="submit" formaction="/club/{{ club.id }}/requirements/{{ requirement.requirement_type.value }}/approve">Approve</button>
-              <button type="submit" formaction="/club/{{ club.id }}/requirements/{{ requirement.requirement_type.value }}/reject">Reject</button>
-            </form>
-          </td>
-        {% endif %}
-      </tr>
-    {% endfor %}
-  </table>
-
-  {% if is_admin %}
-    <h2>Review</h2>
-    {% if club.status.value == "submitted" %}
-      <form method="post" action="/club/{{ club.id }}/review/start">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
-        <button type="submit">Start review</button>
-      </form>
-    {% elif club.status.value == "under_review" %}
-      <form method="post">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
-        <label for="note">Note (required to request changes or reject)</label>
-        <textarea id="note" name="note" rows="3"></textarea>
-        <button type="submit" formaction="/club/{{ club.id }}/review/approve">Approve club</button>
-        <button type="submit" formaction="/club/{{ club.id }}/review/request-changes">Request changes</button>
-        <button type="submit" formaction="/club/{{ club.id }}/review/reject">Reject club</button>
-      </form>
-    {% else %}
-      <p>No review actions available while the club is {{ club.status.value }}.</p>
-    {% endif %}
-  {% endif %}
-
   {% if editable and blockers %}
-    <p class="error">Before you can submit, still needed: {{ blockers | join(", ") }}</p>
+    <p class="warning">Before you can submit, still needed: {{ blockers | join(", ") }}</p>
   {% endif %}
+
+  <div class="card flush">
+    <div class="card-title"><h2>Requirements</h2></div>
+    <table>
+      <tr>
+        <th>Requirement</th>
+        <th>Kind</th>
+        <th>Status</th>
+        <th>Link</th>
+        {% if is_admin and club.status.value == "under_review" %}<th>Review</th>{% endif %}
+      </tr>
+      {% for requirement in requirements %}
+        <tr>
+          <td><strong>{{ requirement.requirement_type.value.replace("_", " ") }}</strong></td>
+          <td class="muted">{{ requirement.kind.value }}</td>
+          <td>
+            <span class="status status-{{ requirement.status.value }}">{{ requirement.status.value }}</span>
+            {% if requirement.reviewer_note %}<br><small>{{ requirement.reviewer_note }}</small>{% endif %}
+          </td>
+          <td>
+            {% if requirement.kind.value == "document" %}
+              {% if editable %}
+                <form class="inline-form" method="post" action="/club/{{ club.id }}/requirements/{{ requirement.requirement_type.value }}/link">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
+                  <input type="url" name="link_url" value="{{ requirement.link_url or '' }}" placeholder="https://..." required>
+                  <button type="submit" class="small">Save</button>
+                </form>
+              {% elif requirement.link_url %}
+                <a class="doc-link" href="{{ requirement.link_url }}">{{ requirement.link_url }}</a>
+              {% else %}
+                <span class="muted">&mdash;</span>
+              {% endif %}
+            {% else %}
+              <span class="muted">(verified by admin)</span>
+            {% endif %}
+          </td>
+          {% if is_admin and club.status.value == "under_review" %}
+            <td>
+              <form class="inline-form" method="post">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
+                <input type="text" name="note" placeholder="Note">
+                <button type="submit" class="small primary" formaction="/club/{{ club.id }}/requirements/{{ requirement.requirement_type.value }}/approve">Approve</button>
+                <button type="submit" class="small danger" formaction="/club/{{ club.id }}/requirements/{{ requirement.requirement_type.value }}/reject">Reject</button>
+              </form>
+            </td>
+          {% endif %}
+        </tr>
+      {% endfor %}
+    </table>
+  </div>
 
   {% if editable %}
     <form method="post" action="/club/{{ club.id }}/submit">
       <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
-      <button type="submit">{{ "Resubmit" if club.status.value == "changes_requested" else "Submit" }}</button>
+      <button type="submit" class="primary">{{ "Resubmit" if club.status.value == "changes_requested" else "Submit" }}</button>
     </form>
   {% endif %}
 
-  <h2>History</h2>
-  {% if events %}
-    <table>
-      <tr>
-        <th>When</th>
-        <th>Event</th>
-        <th>By</th>
-        <th>Note</th>
-      </tr>
-      {% for event, actor_name in events %}
-        <tr>
-          <td>{{ event.created_at.strftime("%Y-%m-%d %H:%M") }}</td>
-          <td>{{ event.event_type }}</td>
-          <td>{{ actor_name }}</td>
-          <td>{{ event.note or "" }}</td>
-        </tr>
-      {% endfor %}
-    </table>
-  {% else %}
-    <p>No history yet.</p>
+  {% if is_admin %}
+    <div class="card">
+      <h2>Review</h2>
+      {% if club.status.value == "submitted" %}
+        <form method="post" action="/club/{{ club.id }}/review/start">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
+          <button type="submit" class="primary">Start review</button>
+        </form>
+      {% elif club.status.value == "under_review" %}
+        <form method="post">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
+          <label for="note">Note (required to request changes or reject)</label>
+          <textarea id="note" name="note" rows="3"></textarea>
+          <div class="actions">
+            <button type="submit" class="primary" formaction="/club/{{ club.id }}/review/approve">Approve club</button>
+            <button type="submit" formaction="/club/{{ club.id }}/review/request-changes">Request changes</button>
+            <button type="submit" class="danger" formaction="/club/{{ club.id }}/review/reject">Reject club</button>
+          </div>
+        </form>
+      {% else %}
+        <p class="muted">No review actions available while the club is {{ club.status.value.replace("_", " ") }}.</p>
+      {% endif %}
+    </div>
   {% endif %}
+
+  <div class="card flush" style="margin-top: 1.25rem">
+    <div class="card-title"><h2>History</h2></div>
+    {% if events %}
+      <table>
+        <tr>
+          <th>When</th>
+          <th>Event</th>
+          <th>By</th>
+          <th>Note</th>
+        </tr>
+        {% for event, actor_name in events %}
+          <tr>
+            <td class="muted nowrap">{{ event.created_at.strftime("%Y-%m-%d %H:%M") }}</td>
+            <td>{{ event.event_type }}</td>
+            <td>{{ actor_name }}</td>
+            <td>{{ event.note or "" }}</td>
+          </tr>
+        {% endfor %}
+      </table>
+    {% else %}
+      <p class="empty">No history yet.</p>
+    {% endif %}
+  </div>
 {% endblock %}

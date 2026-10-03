@@ -3,24 +3,30 @@
 {% block title %}My clubs{% endblock %}
 
 {% block content %}
-  <h1>My clubs</h1>
-
-  <p><a href="/club/new">+ New club</a></p>
+  <div class="page-head">
+    <h1>My clubs</h1>
+    <a class="btn btn-primary" href="/club/new">+ New club</a>
+  </div>
 
   {% if clubs %}
-    <table>
-      <tr>
-        <th>Name</th>
-        <th>Status</th>
-      </tr>
-      {% for club in clubs %}
+    <div class="card flush">
+      <table>
         <tr>
-          <td><a href="/club/{{ club.id }}">{{ club.name }}</a></td>
-          <td><span class="status">{{ club.status.value }}</span></td>
+          <th>Name</th>
+          <th>Status</th>
         </tr>
-      {% endfor %}
-    </table>
+        {% for club in clubs %}
+          <tr>
+            <td><a href="/club/{{ club.id }}"><strong>{{ club.name }}</strong></a></td>
+            <td><span class="status status-{{ club.status.value }}">{{ club.status.value.replace("_", " ") }}</span></td>
+          </tr>
+        {% endfor %}
+      </table>
+    </div>
   {% else %}
-    <p>You haven't started a club yet.</p>
+    <div class="card empty">
+      <p>You haven't started a club yet.</p>
+      <a class="btn btn-primary" href="/club/new">Register your first club</a>
+    </div>
   {% endif %}
 {% endblock %}

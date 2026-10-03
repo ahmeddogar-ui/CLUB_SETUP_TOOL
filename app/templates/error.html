@@ -3,7 +3,9 @@
 {% block title %}Error{% endblock %}
 
 {% block content %}
-  <h1>Something went wrong</h1>
-  <p class="error">{{ error }}</p>
-  <p><a href="/dashboard">Back to dashboard</a></p>
+  <div class="card narrow">
+    <h1>Something went wrong</h1>
+    <p class="error">{{ error }}</p>
+    <a class="btn" href="/dashboard">Back to dashboard</a>
+  </div>
 {% endblock %}

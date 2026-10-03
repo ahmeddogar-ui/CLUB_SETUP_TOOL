@@ -3,24 +3,29 @@
 {% block title %}Review queue{% endblock %}
 
 {% block content %}
-  <h1>Review queue</h1>
+  <div class="page-head">
+    <h1>Review queue</h1>
+  </div>
+  <p class="lead">Longest-waiting clubs first.</p>
 
   {% if clubs %}
-    <table>
-      <tr>
-        <th>Club</th>
-        <th>Status</th>
-        <th>Waiting since</th>
-      </tr>
-      {% for club in clubs %}
+    <div class="card flush">
+      <table>
         <tr>
-          <td><a href="/club/{{ club.id }}">{{ club.name }}</a></td>
-          <td><span class="status">{{ club.status.value }}</span></td>
-          <td>{{ club.updated_at.strftime("%Y-%m-%d %H:%M") }}</td>
+          <th>Club</th>
+          <th>Status</th>
+          <th>Waiting since</th>
         </tr>
-      {% endfor %}
-    </table>
+        {% for club in clubs %}
+          <tr>
+            <td><a href="/club/{{ club.id }}"><strong>{{ club.name }}</strong></a></td>
+            <td><span class="status status-{{ club.status.value }}">{{ club.status.value.replace("_", " ") }}</span></td>
+            <td class="muted nowrap">{{ club.updated_at.strftime("%Y-%m-%d %H:%M") }}</td>
+          </tr>
+        {% endfor %}
+      </table>
+    </div>
   {% else %}
-    <p>Nothing is waiting for review.</p>
+    <div class="card empty"><p>Nothing is waiting for review.</p></div>
   {% endif %}
 {% endblock %}
