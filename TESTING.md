@@ -97,8 +97,7 @@ it yourself.
    uploaded as an artifact.
 
 Coverage for both halves appears in each run's job summary. The thresholds are floors set
-just under today's numbers, so treat a drop as a signal, not a target to game. Dependabot
-opens grouped weekly PRs for test tooling, lint tooling and GitHub Actions.
+just under today's numbers, so treat a drop as a signal, not a target to game.
 
 ## Known bugs
 
