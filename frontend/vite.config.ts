@@ -21,7 +21,8 @@ export default defineConfig({
   server: {
     proxy: {
       "/api": {
-        target: "http://localhost:8000",
+        // Overridable so the e2e run can use its own backend beside a dev one.
+        target: process.env.API_URL ?? "http://localhost:8000",
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api/, ""),
       },
