@@ -191,6 +191,22 @@ describe("club detail as the owning club lead", () => {
 });
 
 describe("club detail as an admin", () => {
+  it("offers no owner controls on someone else's draft", async () => {
+    const club = buildClub({ status: "drafting" });
+    serveClub(club);
+    await openClub(club, ADMIN);
+
+    expect(
+      screen.queryByRole("button", { name: /edit/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Submit for review" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Provide link" }),
+    ).not.toBeInTheDocument();
+  });
+
   it("offers only 'Start review' on a submitted club", async () => {
     const club = buildClub({ status: "submitted" });
     serveClub(club);
