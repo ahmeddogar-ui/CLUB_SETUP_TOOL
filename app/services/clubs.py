@@ -161,6 +161,7 @@ def list_club_events(db: Session, club_id: int) -> list[tuple[ClubEvent, str]]:
         .join(User, User.id == ClubEvent.actor_id)
         .filter(ClubEvent.club_id == club_id)
         .order_by(ClubEvent.created_at.desc(), ClubEvent.id.desc())
+        .tuples()
         .all()
     )
 

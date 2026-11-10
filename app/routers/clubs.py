@@ -3,7 +3,6 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from app.core.security import get_current_user, require_role
 from app.database import DbSession
 from app.models import (
-    Clubs,
     ClubStatus,
     User,
     UserRole,

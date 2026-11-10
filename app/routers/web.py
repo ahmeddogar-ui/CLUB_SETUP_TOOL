@@ -11,9 +11,13 @@ from app.core.security import (
 )
 from app.database import DbSession
 from app.models import Clubs, ClubStatus, RequirementType, User, UserRole
-from app.schemas import ClubCreateRequest, NoteRequest, RequirementLinkRequest, UserRegisterRequest
-from app.services.auth import register_user, verify_credentials
+from app.schemas import (
+    NoteRequest,
+    RequirementLinkRequest,
+    UserRegisterRequest,
+)
 from app.services import requirements as requirement_service
+from app.services.auth import register_user, verify_credentials
 from app.services.clubs import (
     EDITABLE_STATUSES,
     ClubSort,
@@ -27,8 +31,8 @@ from app.services.clubs import (
     review_club,
     submit_club_for_user,
 )
-from app.transitions import submission_blockers
 from app.templates import templates
+from app.transitions import submission_blockers
 
 router = APIRouter(tags=["web"])
 

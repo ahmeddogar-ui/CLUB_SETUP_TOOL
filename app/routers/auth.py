@@ -14,7 +14,7 @@ def register(payload: UserRegisterRequest, db: DbSession):
     return register_user(db, payload.name, payload.email, payload.password)
 
 @router.post("/login")
-def login(form_data: OAuth2PasswordRequestForm = Depends(), db: DbSession = None):
+def login(db: DbSession, form_data: OAuth2PasswordRequestForm = Depends()):
     access_token = authenticate_user(db, form_data.username, form_data.password)
     return {"access_token": access_token, "token_type": "bearer"}
 

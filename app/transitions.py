@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy.orm import Session
 
@@ -11,7 +11,6 @@ from app.models import (
     RequirementStatus,
     User,
 )
-
 
 ALLOWED: dict[tuple[str, str], str] = {
     ("drafting", "submitted"): "club_lead",
@@ -63,7 +62,7 @@ def submission_blockers(club: Clubs, requirements: list[Requirement]) -> list[st
     return missing
 
 
-def _check_guards(db: Session, club: Clubs, to_status: str, note: str | None) -> None:
+def _check_guards(db: Session, club: Clubs, to_status: ClubStatus, note: str | None) -> None:
     key = (club.status, to_status)
 
     requirements = (db.query(Requirement).filter(Requirement.club_id == club.id).all())
@@ -101,7 +100,7 @@ def _check_guards(db: Session, club: Clubs, to_status: str, note: str | None) ->
 def attempt_transition(
     db: Session,
     club: Clubs,
-    to_status: str,
+    to_status: ClubStatus,
     actor: User,
     note: str | None = None,
 ) -> Clubs:
@@ -118,7 +117,7 @@ def attempt_transition(
 
     from_status = club.status
     club.status = to_status
-    club.updated_at = datetime.now(timezone.utc)
+    club.updated_at = datetime.now(UTC)
 
     db.add(
         ClubEvent(

@@ -1,13 +1,15 @@
+import secrets
+from datetime import UTC, datetime, timedelta
+
+import jwt
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordBearer
+from pwdlib import PasswordHash
+from sqlalchemy.orm import Session
+
 from app.core.config import settings
 from app.database import get_db
-from sqlalchemy.orm import Session
 from app.models import User, UserRole
-from pwdlib import PasswordHash
-import jwt
-import secrets
-from datetime import datetime, timedelta, timezone
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
 
@@ -22,7 +24,7 @@ def verify_password(password: str, hashed_password: str) -> bool:
     return password_hash.verify(password, hashed_password)
 
 def create_access_token(user_id: int) -> str:
-    expire = datetime.now(timezone.utc) + timedelta(
+    expire = datetime.now(UTC) + timedelta(
         minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES
     )
     payload = {"sub": str(user_id), "exp": expire}

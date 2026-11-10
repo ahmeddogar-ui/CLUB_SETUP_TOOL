@@ -1,10 +1,11 @@
 from fastapi import FastAPI
+from sqlalchemy import text
 from starlette.middleware.sessions import SessionMiddleware
+
 from app.core.config import settings
 from app.database import DbSession
-from sqlalchemy import text
-from app.routers.clubs import router as clubs_router
 from app.routers.auth import router as auth_router
+from app.routers.clubs import router as clubs_router
 from app.routers.requirements import router as requirements_router
 from app.routers.web import router as web_router
 

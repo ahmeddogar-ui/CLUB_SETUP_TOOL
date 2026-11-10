@@ -34,9 +34,42 @@ package = false
 [dependency-groups]
 dev = [
     "httpx>=0.28.1",
+    "mypy>=2.4.1",
     "pytest>=9.1.1",
+    "pytest-cov>=7.1.0",
+    "ruff>=0.17.4",
 ]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
+addopts = ["--strict-markers", "--strict-config", "-ra"]
+xfail_strict = true
+
+[tool.coverage.run]
+source = ["app"]
+branch = true
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
+fail_under = 90
+
+[tool.ruff]
+target-version = "py313"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+ignore = [
+    "E501",  # line length is left to the author
+    "B008",  # FastAPI's Depends()/Query() defaults are the framework's idiom
+    "B904",  # HTTPException raised from except blocks is intentional here
+    "UP040", # `type X = ...` is a TypeAliasType, which FastAPI does not unwrap for Annotated deps
+    "UP042", # StrEnum would change str() of the role/status enums
+]
+
+[tool.mypy]
+plugins = ["pydantic.mypy"]
+files = ["app"]
+warn_unused_ignores = true
+warn_redundant_casts = true

@@ -1,13 +1,13 @@
 """Ticket 24: GET /clubs, including the admin review queue (status filter + sort)."""
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
 from app.models import Clubs, ClubStatus
 from tests.conftest import auth, create_club, make_user
 
-BASE = datetime(2026, 1, 1, tzinfo=timezone.utc)
+BASE = datetime(2026, 1, 1, tzinfo=UTC)
 
 
 def set_state(db, club_id, status, days_ago):

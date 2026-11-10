@@ -3,14 +3,13 @@ Protected-routes sections. Wrong-role-vs-right-role on `require_role` itself is
 already covered by test_admin_route_guards.py (ticket 23) and isn't repeated here.
 """
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import jwt
-import pytest
 
 from app.core.config import settings
 from app.models import User
-from tests.conftest import auth, make_user
+from tests.conftest import auth
 
 
 def register(client, name="Ada", email="ada@example.com", password="hunter2"):
@@ -23,7 +22,7 @@ def login(client, email, password):
 
 
 def expired_token(user_id: int) -> str:
-    payload = {"sub": str(user_id), "exp": datetime.now(timezone.utc) - timedelta(minutes=1)}
+    payload = {"sub": str(user_id), "exp": datetime.now(UTC) - timedelta(minutes=1)}
     return jwt.encode(payload, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
 
 
@@ -56,7 +55,7 @@ def test_register_response_has_no_password_fields(client):
 
 
 def test_register_hashes_password_and_defaults_role(client, db):
-    response = register(client, password="plaintext-password")
+    register(client, password="plaintext-password")
     user = db.query(User).filter(User.email == "ada@example.com").first()
 
     assert user.password_hash != "plaintext-password"
