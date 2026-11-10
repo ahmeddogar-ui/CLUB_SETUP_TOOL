@@ -55,7 +55,7 @@ export default function Error404({
       </div>
 
       <p className="absolute inset-s-1/2 bottom-6 -translate-x-1/2 text-center text-sm text-gray-500 rtl:translate-x-1/2 dark:text-gray-400">
-        &copy; {new Date().getFullYear()} - TailAdmin
+        &copy; {new Date().getFullYear()} - Club Setup
       </p>
     </div>
   );

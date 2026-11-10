@@ -129,7 +129,9 @@
       "variants02": "Varianten 02",
       "variants03": "Varianten 03",
       "variants04": "Varianten 04",
-      "variants05": "Varianten 05"
+      "variants05": "Varianten 05",
+      "clubs": "Clubs",
+      "reviewQueue": "Prüfwarteschlange"
     },
     "widget": {
       "title": "#1 Tailwind CSS Dashboard",

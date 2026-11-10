@@ -1,6 +1,5 @@
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import {
@@ -15,7 +14,7 @@ import type { User } from "@/lib/types";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
 import { useState } from "react";
-import { Controller, useForm } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { useNavigate } from "react-router";
 import { signUpSchema, type SignUpFormData } from "./schema";
 
@@ -42,7 +41,6 @@ export default function SignUpFormFields() {
   const {
     register,
     handleSubmit,
-    control,
     formState: { errors },
   } = useForm<SignUpFormData>({
     resolver: zodResolver(signUpSchema),
@@ -52,7 +50,6 @@ export default function SignUpFormFields() {
       email: "",
       password: "",
       confirmPassword: "",
-      terms: false,
     },
     mode: "onTouched",
   });
@@ -174,42 +171,6 @@ export default function SignUpFormFields() {
           </InputGroupAddon>
         </InputGroup>
         <FieldError errors={[errors.confirmPassword]} />
-      </Field>
-
-      <Field
-        orientation="horizontal"
-        className="items-start gap-3"
-        data-invalid={Boolean(errors.terms)}
-      >
-        <Controller
-          control={control}
-          name="terms"
-          render={({ field }) => (
-            <Checkbox
-              id="terms"
-              className="mt-0.5"
-              checked={field.value}
-              onCheckedChange={(checked) => field.onChange(Boolean(checked))}
-              aria-invalid={errors.terms ? "true" : undefined}
-            />
-          )}
-        />
-        <div className="flex flex-col gap-1">
-          <FieldLabel
-            htmlFor="terms"
-            className="inline-block cursor-pointer text-sm font-normal text-gray-500 dark:text-gray-400"
-          >
-            By creating an account means you agree to the{" "}
-            <span className="text-gray-800 dark:text-white/90">
-              Terms and Conditions,
-            </span>{" "}
-            and our{" "}
-            <span className="text-gray-800 dark:text-white">
-              Privacy Policy
-            </span>
-          </FieldLabel>
-          <FieldError errors={[errors.terms]} />
-        </div>
       </Field>
 
       <div>

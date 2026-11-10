@@ -1,21 +1,14 @@
-import {
-  Sidebar,
-  SidebarContent,
-  SidebarFooter,
-  useSidebar,
-} from "@/components/ui/sidebar";
+import { Sidebar, SidebarContent, useSidebar } from "@/components/ui/sidebar";
+import { useAuth } from "@/contexts";
 import { useState } from "react";
 import { useLocation } from "react-router";
-import { navItems, othersItems, supportItems } from "./data";
+import { navItems } from "./data";
 import AppSidebarHeader from "./sidebar-header";
 import SidebarNavGroup from "./sidebar-nav-group";
-import SidebarWidget from "./sidebar-widget";
 import type { MenuType, NavItem } from "./types";
 
 const menuSections: { type: MenuType; labelKey: string; items: NavItem[] }[] = [
   { type: "main", labelKey: "groups.menu", items: navItems },
-  { type: "support", labelKey: "groups.support", items: supportItems },
-  { type: "others", labelKey: "groups.others", items: othersItems },
 ];
 
 const findMatchingSubmenu = (path: string) => {
@@ -40,6 +33,8 @@ const findMatchingSubmenu = (path: string) => {
 export default function AppSidebar() {
   const { open, isMobile, isHovered } = useSidebar();
   const { pathname } = useLocation();
+  const { user } = useAuth();
+  const isAdmin = user?.role === "admin";
 
   const showContent = open || isHovered || isMobile;
 
@@ -67,9 +62,12 @@ export default function AppSidebar() {
     });
   };
 
-  const activeSections = menuSections.filter(
-    (section) => section.items.length > 0,
-  );
+  const activeSections = menuSections
+    .map((section) => ({
+      ...section,
+      items: section.items.filter((item) => !item.isAdminOnly || isAdmin),
+    }))
+    .filter((section) => section.items.length > 0);
 
   return (
     <Sidebar side="left" collapsible="icon">
@@ -93,12 +91,6 @@ export default function AppSidebar() {
           </div>
         </nav>
       </SidebarContent>
-
-      {showContent && (
-        <SidebarFooter className="p-0 px-5 pt-1 pb-4">
-          <SidebarWidget />
-        </SidebarFooter>
-      )}
     </Sidebar>
   );
 }

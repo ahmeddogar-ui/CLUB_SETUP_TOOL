@@ -10,8 +10,19 @@ from app.schemas import (
     RequirementOut,
 )
 from app.services import requirements as service
+from app.services.clubs import get_club_for_user, list_requirements
 
 router = APIRouter(prefix="/clubs", tags=["requirements"])
+
+
+@router.get("/{club_id}/requirements", response_model=list[RequirementOut])
+def list_club_requirements(
+    club_id: int,
+    db: DbSession,
+    current_user: User = Depends(get_current_user),
+):
+    club = get_club_for_user(db, club_id, current_user)
+    return list_requirements(db, club.id)
 
 
 @router.put(

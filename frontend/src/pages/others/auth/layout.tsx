@@ -1,8 +1,14 @@
+import { AppLogo } from "@/components/shared/app-logo";
 import GridShape from "@/components/shared/grid-shape";
-import { Link, Outlet } from "react-router";
+import { useAuth } from "@/contexts";
+import { Navigate, Outlet } from "react-router";
 import ThemeToggler from "./theme-toggler";
 
 export default function AuthLayout() {
+  const { user } = useAuth();
+
+  if (user) return <Navigate to="/" replace />;
+
   return (
     <div className="relative z-1 bg-white p-6 sm:p-0 dark:bg-gray-900">
       <div className="relative flex h-screen w-full flex-col justify-center sm:p-0 lg:flex-row dark:bg-gray-900">
@@ -12,16 +18,10 @@ export default function AuthLayout() {
             <GridShape />
 
             <div className="flex max-w-xs flex-col items-center">
-              <Link to="/" className="mb-4 block">
-                <img
-                  width={231}
-                  height={48}
-                  src="/images/logo/auth-logo.svg"
-                  alt="Logo"
-                />
-              </Link>
+              <AppLogo className="mb-4" nameClassName="text-white" />
               <p className="text-center text-gray-400 dark:text-white/60">
-                Free and Open-Source Tailwind CSS Admin Dashboard Template
+                Register your club, hand in its documents and track the review
+                in one place.
               </p>
             </div>
           </div>

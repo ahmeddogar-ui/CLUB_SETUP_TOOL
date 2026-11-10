@@ -1,6 +1,6 @@
 import React from "react";
 
-export type MenuType = "main" | "support" | "others";
+export type MenuType = "main";
 
 export interface SubItem {
   key: string;
@@ -17,4 +17,5 @@ export interface NavItem {
   new?: boolean;
   target?: string;
   subItems?: SubItem[];
+  isAdminOnly?: boolean;
 }

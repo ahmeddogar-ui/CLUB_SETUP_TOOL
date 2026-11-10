@@ -129,7 +129,9 @@
       "variants02": "المتغير 02",
       "variants03": "المتغير 03",
       "variants04": "المتغير 04",
-      "variants05": "المتغير 05"
+      "variants05": "المتغير 05",
+      "clubs": "الأندية",
+      "reviewQueue": "قائمة المراجعة"
     },
     "widget": {
       "title": "لوحة التحكم رقم 1 بـ Tailwind CSS",

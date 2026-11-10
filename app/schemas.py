@@ -1,6 +1,14 @@
+from datetime import datetime
+
 from pydantic import AnyHttpUrl, BaseModel, EmailStr, Field, field_validator
 
-from app.models import RequirementKind, RequirementStatus, RequirementType, UserRole
+from app.models import (
+    ClubStatus,
+    RequirementKind,
+    RequirementStatus,
+    RequirementType,
+    UserRole,
+)
 
 
 class UserRegisterRequest(BaseModel):
@@ -55,6 +63,18 @@ class OptionalNoteRequest(BaseModel):
 
 class RequirementLinkRequest(BaseModel):
     link_url: AnyHttpUrl
+
+
+class ClubEventOut(BaseModel):
+    id: int
+    event_type: str
+    requirement_id: int | None
+    link_url: str | None
+    from_status: ClubStatus | None
+    to_status: ClubStatus
+    note: str | None
+    actor_name: str
+    created_at: datetime
 
 
 class RequirementOut(BaseModel):

@@ -8,13 +8,20 @@ from app.models import (
     User,
     UserRole,
 )
-from app.schemas import ClubCreateRequest, ClubOut, ClubUpdateRequest, NoteRequest
+from app.schemas import (
+    ClubCreateRequest,
+    ClubEventOut,
+    ClubOut,
+    ClubUpdateRequest,
+    NoteRequest,
+)
 from app.services.clubs import (  # noqa: F401  (INITIAL_REQUIREMENTS re-exported for tests)
     EDITABLE_STATUSES,
     INITIAL_REQUIREMENTS,
     ClubSort,
     create_club_for_user,
     get_club_for_user,
+    list_club_events,
     list_clubs_for_user,
     resubmit_club_for_user,
     review_club,
@@ -51,6 +58,29 @@ def get_club(
     club = get_club_for_user(db, club_id, current_user)
 
     return club
+
+
+@router.get("/{club_id}/events", response_model=list[ClubEventOut])
+def get_club_events(
+    club_id: int,
+    db: DbSession,
+    current_user: User = Depends(get_current_user),
+):
+    club = get_club_for_user(db, club_id, current_user)
+    return [
+        ClubEventOut(
+            id=event.id,
+            event_type=event.event_type,
+            requirement_id=event.requirement_id,
+            link_url=event.link_url,
+            from_status=event.from_status,
+            to_status=event.to_status,
+            note=event.note,
+            actor_name=actor_name,
+            created_at=event.created_at,
+        )
+        for event, actor_name in list_club_events(db, club.id)
+    ]
 
 
 @router.patch("/{club_id}", response_model=ClubOut)

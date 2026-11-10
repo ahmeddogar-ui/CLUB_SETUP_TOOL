@@ -129,7 +129,9 @@
       "variants02": "Variantes 02",
       "variants03": "Variantes 03",
       "variants04": "Variantes 04",
-      "variants05": "Variantes 05"
+      "variants05": "Variantes 05",
+      "clubs": "Clubes",
+      "reviewQueue": "Cola de revisión"
     },
     "widget": {
       "title": "Panel n.º 1 de Tailwind CSS",
