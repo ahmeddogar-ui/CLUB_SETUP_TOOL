@@ -11,7 +11,13 @@
     "lint:fast": "oxlint",
     "lint:eslint": "eslint .",
     "lint:fix": "oxlint --fix && eslint --fix .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "typecheck": "tsc -b",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "test:e2e": "playwright test",
+    "format:check": "prettier --check ."
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",
@@ -53,9 +59,13 @@
   "devDependencies": {
     "@babel/core": "^7.29.7",
     "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.65.0",
     "@rolldown/plugin-babel": "^0.2.3",
     "@tailwindcss/forms": "^0.5.11",
     "@tailwindcss/vite": "^4.3.3",
+    "@testing-library/jest-dom": "^7.0.1",
+    "@testing-library/react": "^16.3.3",
+    "@testing-library/user-event": "^14.6.9",
     "@types/jsvectormap": "^1.7.0",
     "@types/leaflet": "^1.9.22",
     "@types/node": "^24.19.1",
@@ -63,12 +73,15 @@
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.7",
     "@vitejs/plugin-react": "^6.1.1",
+    "@vitest/coverage-v8": "^5.1.0",
     "babel-plugin-react-compiler": "^1.0.0",
     "eslint": "^10.12.0",
     "eslint-plugin-oxlint": "^1.87.0",
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.7",
     "globals": "^17.13.0",
+    "jsdom": "^31.0.0",
+    "msw": "^3.0.4",
     "oxlint": "^1.81.0",
     "oxlint-tsgolint": "^7.0.2003",
     "prettier": "^3.9.9",
@@ -77,6 +90,7 @@
     "typescript": "~6.0.2",
     "typescript-eslint": "^8.71.1",
     "vite": "^8.3.0",
-    "vite-plugin-svgr": "^5.2.0"
+    "vite-plugin-svgr": "^5.2.0",
+    "vitest": "^5.1.0"
   }
 }

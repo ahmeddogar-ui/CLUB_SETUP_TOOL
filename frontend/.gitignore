@@ -24,3 +24,8 @@ dist-ssr
 *.sln
 *.sw?
 .commandcode
+
+# Test output
+coverage
+test-results
+playwright-report
