@@ -100,6 +100,9 @@ def client(db):
 
 
 _user_counter = 0
+# Argon2 is deliberately slow; hash once and share it. It is still a real hash,
+# so logging in as a fixture user with "password" works.
+_PASSWORD_HASH = hash_password("password")
 
 
 def make_user(db: Session, role: UserRole = UserRole.club_lead) -> User:
@@ -108,7 +111,7 @@ def make_user(db: Session, role: UserRole = UserRole.club_lead) -> User:
     user = User(
         name=f"{role.value} {_user_counter}",
         email=f"{role.value}{_user_counter}@example.com",
-        password_hash=hash_password("password"),
+        password_hash=_PASSWORD_HASH,
         role=role,
     )
     db.add(user)
