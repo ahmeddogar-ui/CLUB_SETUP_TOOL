@@ -5,10 +5,37 @@ on:
   push:
     branches: [main]
 
-jobs:
-  test:
-    runs-on: ubuntu-latest
+permissions:
+  contents: read
 
+# A newer push to the same branch or PR makes the older run pointless.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Database names must contain "test": tests/conftest.py refuses to run otherwise.
+  TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/club_setup_tool_test
+  E2E_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/club_setup_tool_e2e_test
+
+jobs:
+  backend-lint:
+    name: Backend lint and types
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10
+        with:
+          cache-python: true
+      - run: uv sync --locked
+      - run: uv run ruff check app tests
+      - run: uv run mypy
+
+  backend-test:
+    name: Backend tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
     services:
       postgres:
         image: postgres:16
@@ -18,36 +45,94 @@ jobs:
           POSTGRES_DB: club_setup_tool_test
         ports:
           - 5432:5432
-        # Wait for Postgres to actually accept connections before any step runs --
-        # the container starts before the server inside it is ready to accept them.
         options: >-
           --health-cmd pg_isready
-          --health-interval 10s
+          --health-interval 5s
           --health-timeout 5s
-          --health-retries 5
-
-    env:
-      # Must contain "test" -- tests/conftest.py refuses to run otherwise, as a
-      # guard against ever pointing the suite at a real database by mistake.
-      TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/club_setup_tool_test
-      SECRET_KEY: ci-secret-key-not-used-outside-this-workflow-32b
-
+          --health-retries 10
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@v3
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10
         with:
-          version: "latest"
-          enable-cache: true
+          cache-python: true
+      - run: uv sync --locked
+      - name: Run pytest with coverage
+        run: uv run pytest --cov
+      - name: Publish coverage summary
+        if: always()
+        run: uv run coverage report --format=markdown >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
+  frontend:
+    name: Frontend lint, types, tests and build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
-          python-version-file: ".python-version"
+          node-version-file: frontend/.nvmrc
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run format:check
+      - run: npm run lint
+      - run: npm run typecheck
+      - name: Run Vitest with coverage
+        # shell: bash adds pipefail, so a failing test still fails the step.
+        shell: bash
+        run: npm run test:coverage | tee vitest-output.txt
+      - name: Publish coverage summary
+        if: always()
+        run: |
+          {
+            echo '### Frontend coverage'
+            echo '```'
+            sed -n '/Coverage summary/,/^=*$/p' vitest-output.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - run: npm run build
 
-      - name: Install dependencies
-        run: uv sync --locked
-
-      - name: Run pytest
-        run: uv run pytest -v
+  e2e:
+    name: End-to-end
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: club_setup_tool_e2e_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10
+        with:
+          cache-python: true
+      - run: uv sync --locked
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: frontend/.nvmrc
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+        working-directory: frontend
+      - run: npx playwright install --with-deps chromium
+        working-directory: frontend
+      - run: npm run test:e2e
+        working-directory: frontend
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: playwright-report
+          path: frontend/playwright-report
+          retention-days: 7

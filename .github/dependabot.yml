@@ -1,0 +1,50 @@
+version: 2
+updates:
+  - package-ecosystem: uv
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      # Test and lint tooling moves together and rarely breaks the app, so one PR.
+      dev-tooling:
+        dependency-type: development
+      runtime:
+        dependency-type: production
+        update-types: [minor, patch]
+
+  - package-ecosystem: npm
+    directory: /frontend
+    schedule:
+      interval: weekly
+    groups:
+      test-tooling:
+        patterns:
+          - vitest
+          - "@vitest/*"
+          - "@testing-library/*"
+          - jsdom
+          - msw
+          - "@playwright/test"
+      lint-and-types:
+        patterns:
+          - eslint
+          - "eslint-*"
+          - "@eslint/*"
+          - typescript
+          - "typescript-eslint"
+          - oxlint
+          - "oxlint-*"
+          - prettier
+          - "prettier-*"
+          - "@types/*"
+      runtime:
+        dependency-type: production
+        update-types: [minor, patch]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ["*"]
