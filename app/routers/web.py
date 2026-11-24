@@ -117,7 +117,7 @@ def register_submit(
                 "name": name,
                 "email": email,
             },
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
         )
 
     try:
@@ -204,7 +204,7 @@ def new_club_submit(
                 "name": name,
                 "description": description,
             },
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
         )
     club = create_club_for_user(db, current_user, name, description)
     return RedirectResponse(f"/club/{club.id}", status_code=status.HTTP_303_SEE_OTHER)
@@ -283,7 +283,7 @@ def club_requirement_link(
         return _render_club(
             request, db, club, current_user,
             error="Enter a full link starting with http:// or https://",
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
         )
     except HTTPException as exc:
         return _render_club(request, db, club, current_user, error=exc.detail, status_code=exc.status_code)
@@ -371,7 +371,7 @@ def club_requirement_review(
         return _render_club(
             request, db, club, current_user,
             error="a note is required for this action",
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
         )
     except HTTPException as exc:
         return _render_club(request, db, club, current_user, error=exc.detail, status_code=exc.status_code)
