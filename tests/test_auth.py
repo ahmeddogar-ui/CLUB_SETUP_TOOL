@@ -170,11 +170,11 @@ def test_discarding_the_token_client_side_is_equivalent_to_no_token(client):
 # --- require_role (success path only; the 403 path is ticket 23's) ------------
 
 
-def test_admin_role_user_passes_require_role(client, admin, db):
-    from tests.conftest import create_club
+def test_admin_role_user_passes_require_role(client, admin, lead, db):
+    from tests.conftest import make_club
 
-    club = create_club(client, admin)
-    response = client.post(f"/clubs/{club['id']}/start-review", headers=auth(admin))
+    club = make_club(db, lead)
+    response = client.post(f"/clubs/{club.id}/start-review", headers=auth(admin))
     # Not a legal transition from `drafting`, but a 409 proves require_role let it
     # through to the transition service -- a 403 here would mean the role check
     # itself rejected a genuine admin, which is the thing this test guards against.

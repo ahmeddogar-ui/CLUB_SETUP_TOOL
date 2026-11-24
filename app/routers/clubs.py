@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, Query, status
 
 from app.core.security import get_current_user, require_role
 from app.database import DbSession
@@ -15,7 +15,6 @@ from app.schemas import (
     NoteRequest,
 )
 from app.services.clubs import (  # noqa: F401  (INITIAL_REQUIREMENTS re-exported for tests)
-    EDITABLE_STATUSES,
     INITIAL_REQUIREMENTS,
     ClubSort,
     create_club_for_user,
@@ -25,6 +24,7 @@ from app.services.clubs import (  # noqa: F401  (INITIAL_REQUIREMENTS re-exporte
     resubmit_club_for_user,
     review_club,
     submit_club_for_user,
+    update_club_for_user,
 )
 
 router = APIRouter(prefix="/clubs", tags=["clubs"])
@@ -89,22 +89,9 @@ def update_club(
     db: DbSession,
     current_user: User = Depends(get_current_user),
 ):
-    club = get_club_for_user(db, club_id, current_user)
-
-    if club.status not in EDITABLE_STATUSES:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Cannot edit a club that has already been submitted",
-        )
-
-    if payload.name is not None:
-        club.name = payload.name
-    if payload.description is not None:
-        club.description = payload.description
-
-    db.commit()
-    db.refresh(club)
-    return club
+    return update_club_for_user(
+        db, club_id, current_user, payload.name, payload.description
+    )
 
 
 @router.post("/{club_id}/submit", response_model=ClubOut)

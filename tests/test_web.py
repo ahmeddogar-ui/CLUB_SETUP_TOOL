@@ -10,8 +10,8 @@ from tests.conftest import make_club, provide_all_documents, requirements_for
 NO_FOLLOW = {"follow_redirects": False}
 
 
-def _token(client, path="/login") -> str:
-    html = client.get(path, **NO_FOLLOW).text
+def _token(client, path="/login", follow_redirects=False) -> str:
+    html = client.get(path, follow_redirects=follow_redirects).text
     match = re.search(r'name="csrf_token" value="([^"]+)"', html)
     assert match, f"no csrf token on {path}"
     return match.group(1)
@@ -26,10 +26,9 @@ def web_login(client, user, password="password"):
 
 
 def post(client, path, data=None):
-    """POST a form with a valid CSRF token (taken from /club/new, any logged-in page)."""
-    return client.post(
-        path, data={**(data or {}), "csrf_token": _token(client, "/club/new")}, **NO_FOLLOW
-    )
+    """POST a form with a valid CSRF token, taken from the logged-in user's home page."""
+    token = _token(client, "/dashboard", follow_redirects=True)
+    return client.post(path, data={**(data or {}), "csrf_token": token}, **NO_FOLLOW)
 
 
 @pytest.fixture
@@ -234,6 +233,13 @@ def test_admin_sees_review_controls(admin_client, db, lead):
     reviewing = make_club(db, lead, status=ClubStatus.under_review)
     page = admin_client.get(f"/club/{reviewing.id}").text
     assert "Approve club" in page and "Request changes" in page
+
+
+def test_admin_cannot_open_or_submit_the_new_club_form(admin_client, db, admin):
+    assert admin_client.get("/club/new", **NO_FOLLOW).status_code == 403
+    response = post(admin_client, "/club/new", {"name": "Admin Club", "description": "x"})
+    assert response.status_code == 403
+    assert db.query(Clubs).filter(Clubs.submitter_id == admin.id).count() == 0
 
 
 def test_club_lead_sees_no_review_controls(lead_client, db, lead):

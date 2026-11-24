@@ -34,6 +34,13 @@ class ClubSort(str, Enum):
 
 
 def create_club_for_user(db: Session, user: User, name: str, description: str) -> Clubs:
+    # Only a club lead can ever submit a club, so a club created by anyone else
+    # could never leave drafting.
+    if user.role != UserRole.club_lead:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only club leads can create clubs",
+        )
     club = Clubs(
         name=name,
         description=description,
@@ -111,10 +118,45 @@ def ensure_owner_or_admin(club: Clubs, user: User) -> None:
         )
 
 
+def ensure_owner(club: Clubs, user: User) -> None:
+    """For changes to a club's content: admins review clubs but never edit them."""
+    if club.submitter_id != user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Not your club"
+        )
+
+
 def get_club_for_user(db: Session, club_id: int, user: User) -> Clubs:
     """Existence before ownership, so a missing club is a 404 for everyone."""
     club = get_club_or_404(db, club_id)
     ensure_owner_or_admin(club, user)
+    return club
+
+
+def update_club_for_user(
+    db: Session,
+    club_id: int,
+    user: User,
+    name: str | None,
+    description: str | None,
+) -> Clubs:
+    """Ownership before status, so a stranger never learns a club's state."""
+    club = get_club_or_404(db, club_id)
+    ensure_owner(club, user)
+
+    if club.status not in EDITABLE_STATUSES:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Cannot edit a club that has already been submitted",
+        )
+
+    if name is not None:
+        club.name = name
+    if description is not None:
+        club.description = description
+
+    db.commit()
+    db.refresh(club)
     return club
 
 

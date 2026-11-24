@@ -29,6 +29,16 @@ def test_create_requires_authentication(client):
     assert response.status_code == 401
 
 
+def test_admin_cannot_create_a_club(client, db, admin):
+    # Only club leads can submit, so an admin's club could never leave drafting.
+    response = client.post(
+        "/clubs", json={"name": "Admin Club", "description": "x"}, headers=auth(admin)
+    )
+
+    assert response.status_code == 403
+    assert db.query(Clubs).filter(Clubs.submitter_id == admin.id).count() == 0
+
+
 def test_create_starts_drafting_owned_by_caller_with_club_out_shape(client, lead):
     club = create_club(client, lead)
 
@@ -143,6 +153,16 @@ def test_update_someone_elses_club_is_403_before_the_status_check(client, db, le
     club = make_club(db, lead, status=ClubStatus.submitted)
 
     response = patch(client, club.id, other_lead, {"name": "Hijacked"})
+
+    assert response.status_code == 403
+    db.expire_all()
+    assert db.get(Clubs, club.id).name == "Chess Club"
+
+
+def test_admin_cannot_edit_a_leads_draft(client, db, lead, admin):
+    club = make_club(db, lead)
+
+    response = patch(client, club.id, admin, {"name": "Renamed by admin"})
 
     assert response.status_code == 403
     db.expire_all()

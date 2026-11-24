@@ -176,7 +176,7 @@ def admin_queue(
 @router.get("/club/new")
 def new_club_page(
     request: Request,
-    current_user: User = Depends(require_web_user),
+    current_user: User = Depends(require_web_role(UserRole.club_lead)),
 ):
     return templates.TemplateResponse(
         request,
@@ -189,7 +189,7 @@ def new_club_page(
 def new_club_submit(
     request: Request,
     db: DbSession,
-    current_user: User = Depends(require_web_user),
+    current_user: User = Depends(require_web_role(UserRole.club_lead)),
     name: str = Form(""),
     description: str = Form(""),
 ):

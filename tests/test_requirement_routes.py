@@ -72,6 +72,12 @@ def test_set_link_someone_elses_club_is_403(client, draft, other_lead):
     assert set_link(client, draft["id"], "budget", other_lead).status_code == 403
 
 
+def test_admin_cannot_set_a_link_on_a_leads_draft(client, db, draft, admin):
+    # Admins review documents; providing them is the owner's job.
+    assert set_link(client, draft["id"], "budget", admin).status_code == 403
+    assert requirements_for(db, draft["id"])["budget"].link_url is None
+
+
 def test_set_link_missing_club_404(client, lead):
     assert set_link(client, 999999, "budget", lead).status_code == 404
 

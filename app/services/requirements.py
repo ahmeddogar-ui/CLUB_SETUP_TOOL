@@ -11,7 +11,7 @@ from app.models import (
     RequirementType,
     User,
 )
-from app.services.clubs import EDITABLE_STATUSES, ensure_owner_or_admin, get_club_or_404
+from app.services.clubs import EDITABLE_STATUSES, ensure_owner, get_club_or_404
 
 
 def get_requirement_or_404(
@@ -78,7 +78,7 @@ def set_requirement_link(
     user: User,
 ) -> Requirement:
     club = get_club_or_404(db, club_id)
-    ensure_owner_or_admin(club, user)
+    ensure_owner(club, user)
 
     if club.status not in EDITABLE_STATUSES:
         raise HTTPException(
