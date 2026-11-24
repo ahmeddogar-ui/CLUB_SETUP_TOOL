@@ -29,5 +29,6 @@ coverage:
 ## Every static check CI gates on.
 lint:
 	uv run ruff check app tests
+	uv run ruff format --check app tests alembic
 	uv run mypy
 	cd frontend && npm run format:check && npm run lint && npm run typecheck

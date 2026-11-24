@@ -89,7 +89,7 @@ it yourself.
 
 `.github/workflows/ci.yml` runs four jobs in parallel on every PR and on pushes to `main`:
 
-1. **Backend lint and types**: `ruff check` and `mypy`.
+1. **Backend lint and types**: `ruff check`, `ruff format --check` and `mypy`.
 2. **Backend tests**: pytest with coverage against Postgres 16. Fails below 90% coverage.
 3. **Frontend**: Prettier check, lint, `tsc`, Vitest with coverage floors (set in
    `vite.config.ts`), production build.

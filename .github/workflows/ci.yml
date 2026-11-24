@@ -30,6 +30,7 @@ jobs:
           cache-python: true
       - run: uv sync --locked
       - run: uv run ruff check app tests
+      - run: uv run ruff format --check app tests alembic
       - run: uv run mypy
 
   backend-test:
