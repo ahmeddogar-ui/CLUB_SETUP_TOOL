@@ -1,7 +1,14 @@
 from datetime import datetime
 from enum import Enum
 
-from sqlalchemy import DateTime, ForeignKey, MetaData, UniqueConstraint, text
+from sqlalchemy import (
+    CheckConstraint,
+    DateTime,
+    ForeignKey,
+    MetaData,
+    UniqueConstraint,
+    text,
+)
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
@@ -49,6 +56,7 @@ class RequirementStatus(str, Enum):
 
 class User(Base):
     __tablename__ = "users"
+    __table_args__ = (CheckConstraint("email = lower(email)", name="email_lowercase"),)
 
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str]

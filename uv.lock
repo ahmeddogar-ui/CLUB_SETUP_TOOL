@@ -289,6 +289,7 @@ dev = [
     { name = "pytest" },
     { name = "pytest-cov" },
     { name = "ruff" },
+    { name = "types-psycopg2" },
 ]
 
 [package.metadata]
@@ -313,6 +314,7 @@ dev = [
     { name = "pytest", specifier = ">=9.1.1" },
     { name = "pytest-cov", specifier = ">=7.1.0" },
     { name = "ruff", specifier = ">=0.17.4" },
+    { name = "types-psycopg2", specifier = ">=2.9.21.20261122" },
 ]
 
 [[package]]
@@ -1488,6 +1490,15 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/ae/40/4a3db7990d1f62a53182aa96eaef57aeb2886a27f90a195bc66713565d31/typer-0.27.1.tar.gz", hash = "sha256:a79bef8469a79c45498e7b814ecf8d603cc7644e9acbd9e19cac0334240b18df", size = 203994, upload-time = "2026-08-03T14:41:03.438Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/43/89/9518bc0c3929bee36b3a4a8e3daddd6e03f92f9961c66d4983b837160543/typer-0.27.1-py3-none-any.whl", hash = "sha256:53150287edd11baeb4e4722c8e394fcdf8181c0ae89485cba8d25c778d5edd56", size = 122874, upload-time = "2026-08-03T14:41:04.391Z" },
+]
+
+[[package]]
+name = "types-psycopg2"
+version = "2.9.21.20261122"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/06/98/c4d772d148d8c048ec7ac5baecccadb74b80971f6e03b32101c9ba2e9e5f/types_psycopg2-2.9.21.20261122.tar.gz", hash = "sha256:4c045b8b0add828c75f00d7d602a5375ccd433521582af1a78bb153795e7d80c", size = 28016, upload-time = "2026-11-22T08:57:54.855Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/96/68/688d4b554aac5f59630f56c773acb27f3f48ccf4450556d275e500e0c1c4/types_psycopg2-2.9.21.20261122-py3-none-any.whl", hash = "sha256:2f8288d554d59c3091c4a5b781a087e52663866e4aadf3ab5aa7e4a7eb8bc5e8", size = 25080, upload-time = "2026-11-22T08:57:54.129Z" },
 ]
 
 [[package]]

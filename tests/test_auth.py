@@ -6,6 +6,8 @@ already covered by test_admin_route_guards.py (ticket 23) and isn't repeated her
 from datetime import UTC, datetime, timedelta
 
 import jwt
+import pytest
+from sqlalchemy.exc import IntegrityError
 
 from app.core.config import settings
 from app.models import User
@@ -95,27 +97,29 @@ def test_login_nonexistent_email_is_same_generic_401(client):
     assert response.json()["detail"] == "Incorrect email or password"
 
 
-def test_login_email_matching_is_consistent_by_case(client):
-    """Current behavior: email matching is a plain equality check on the
-    stored value (no case-folding), so a different-case login is treated as a
-    different, nonexistent user -- consistently 401, never a silent partial
-    match.
+def test_email_is_case_insensitive_for_login(client, db):
+    register(client, email="Ada@Example.com", password="hunter2")
 
-    Domain kept lowercase throughout deliberately: EmailStr (via
-    email-validator) normalizes the *domain* to lowercase on register --
-    local part is left as-is -- so a mixed-case domain here would be
-    comparing against a value that was silently rewritten on the way in,
-    which is a different behavior than the local-part case-sensitivity this
-    test is actually after.
-    """
-    register(client, email="Ada@example.com", password="hunter2")
+    assert db.query(User).filter(User.email == "ada@example.com").count() == 1
+    for email in ("Ada@Example.com", "ada@example.com", "ADA@EXAMPLE.COM"):
+        assert login(client, email, "hunter2").status_code == 200, email
 
-    same_case = login(client, "Ada@example.com", "hunter2")
-    different_case = login(client, "ada@example.com", "hunter2")
 
-    assert same_case.status_code == 200
-    assert different_case.status_code == 401
-    assert different_case.json()["detail"] == "Incorrect email or password"
+def test_register_same_email_in_different_case_is_409(client, db):
+    assert register(client, email="ada@example.com").status_code == 201
+
+    second = register(client, name="Impostor", email="ADA@example.com")
+
+    assert second.status_code == 409
+    assert db.query(User).filter(User.email == "ada@example.com").count() == 1
+
+
+def test_database_rejects_a_mixed_case_email(db):
+    # Belt and braces: the check constraint catches any path that skips normalize_email.
+    db.add(User(name="Raw", email="Raw@example.com", password_hash="x", role="club_lead"))
+    with pytest.raises(IntegrityError):
+        db.flush()
+    db.rollback()
 
 
 # --- protected routes / get_current_user ---------------------------------------

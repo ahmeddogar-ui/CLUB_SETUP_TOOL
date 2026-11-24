@@ -38,6 +38,7 @@ dev = [
     "pytest>=9.1.1",
     "pytest-cov>=7.1.0",
     "ruff>=0.17.4",
+    "types-psycopg2>=2.9.21.20261122",
 ]
 
 [tool.pytest.ini_options]
