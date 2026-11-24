@@ -57,3 +57,14 @@ def verify_credentials(db: Session, email: str, password: str) -> User:
 def authenticate_user(db: Session, email: str, password: str) -> str:
     """Returns a fresh access token, or raises 401."""
     return create_access_token(verify_credentials(db, email, password).id)
+
+
+def make_admin(db: Session, email: str) -> User | None:
+    """Gives an existing user the admin role. None if no such user."""
+    user = db.query(User).filter(User.email == normalize_email(email)).first()
+    if user is None:
+        return None
+    user.role = UserRole.admin
+    db.commit()
+    db.refresh(user)
+    return user

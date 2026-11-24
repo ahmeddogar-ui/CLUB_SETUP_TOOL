@@ -1,5 +1,5 @@
 import { defineConfig, devices } from "@playwright/test";
-import { E2E_DATABASE_URL } from "./e2e/database.ts";
+import { BACKEND_ENV } from "./e2e/backend.ts";
 
 // The e2e run starts its own backend and Vite server on ports that don't clash
 // with a dev session, against a dedicated database (migrated on startup).
@@ -22,10 +22,7 @@ export default defineConfig({
       command: `uv run alembic upgrade head && uv run uvicorn app.main:app --port ${API_PORT}`,
       cwd: "..",
       url: `http://localhost:${API_PORT}/health`,
-      env: {
-        DATABASE_URL: E2E_DATABASE_URL,
-        SECRET_KEY: "e2e-secret-key-not-used-anywhere-else-32b",
-      },
+      env: BACKEND_ENV,
       reuseExistingServer: false,
     },
     {

@@ -10,7 +10,8 @@ import pytest
 from sqlalchemy.exc import IntegrityError
 
 from app.core.config import settings
-from app.models import User
+from app.models import User, UserRole
+from app.services.auth import make_admin
 from tests.conftest import auth
 
 
@@ -183,3 +184,20 @@ def test_admin_role_user_passes_require_role(client, admin, lead, db):
     # through to the transition service -- a 403 here would mean the role check
     # itself rejected a genuine admin, which is the thing this test guards against.
     assert response.status_code == 409
+
+
+# --- make_admin (the `python -m app.cli make-admin` command) ---------------------
+
+
+def test_make_admin_promotes_the_user_matching_the_email_in_any_case(db, lead):
+    promoted = make_admin(db, lead.email.upper())
+
+    assert promoted is not None and promoted.id == lead.id
+    db.expire_all()
+    assert db.get(User, lead.id).role == UserRole.admin
+
+
+def test_make_admin_with_unknown_email_returns_none_and_changes_nothing(db, lead):
+    assert make_admin(db, "nobody@example.com") is None
+    db.expire_all()
+    assert db.get(User, lead.id).role == UserRole.club_lead

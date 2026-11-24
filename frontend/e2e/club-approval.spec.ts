@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { promoteToAdmin } from "./database.ts";
+import { makeAdmin } from "./backend.ts";
 
 // One journey through the real stack (Vite proxy, FastAPI, Postgres). Unique
 // emails per run, so the database never needs resetting between runs.
@@ -92,7 +92,7 @@ test("a lead's club goes from draft to approved by an admin", async ({
 
   await test.step("admin reviews and approves", async () => {
     await signUp(adminPage, admin);
-    promoteToAdmin(admin.email);
+    makeAdmin(admin.email);
     await signIn(adminPage, admin.email, "All clubs");
 
     await adminPage.goto("/review");

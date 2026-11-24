@@ -82,8 +82,8 @@ it yourself.
 - Playwright starts its own backend (port 8100) and Vite server (port 5174) against the
   e2e database, so it can run while your dev servers are up.
 - Every run uses unique emails and names. Nothing is cleaned up, and nothing needs to be.
-- There is no API for creating an admin, so `e2e/database.ts` promotes a user with `psql`,
-  the same way an operator would.
+- There is no API for creating an admin, so `e2e/backend.ts` signs a user up and then runs
+  the `make-admin` operator command, the same way you would.
 
 ## CI
 
