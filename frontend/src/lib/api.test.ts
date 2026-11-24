@@ -105,4 +105,83 @@ describe("apiFetch", () => {
       message: "Something went wrong",
     });
   });
+
+  it("returns undefined for 204 No Content", async () => {
+    server.use(
+      http.post("/api/echo", () => new HttpResponse(null, { status: 204 })),
+    );
+    await expect(
+      apiFetch("/echo", { method: "POST" }),
+    ).resolves.toBeUndefined();
+  });
+
+  describe("when the access token has expired", () => {
+    function expireTokenUntilRefreshed() {
+      const seenTokens: (string | null)[] = [];
+      server.use(
+        http.get("/api/echo", ({ request }) => {
+          const header = request.headers.get("Authorization");
+          seenTokens.push(header);
+          return header === "Bearer fresh"
+            ? HttpResponse.json({ ok: true })
+            : HttpResponse.json({ detail: "Expired" }, { status: 401 });
+        }),
+      );
+      return seenTokens;
+    }
+
+    it("refreshes once and retries with the new token", async () => {
+      localStorage.setItem(TOKEN_KEY, "stale");
+      const seenTokens = expireTokenUntilRefreshed();
+      server.use(
+        http.post("/api/auth/refresh", () =>
+          HttpResponse.json({ access_token: "fresh", token_type: "bearer" }),
+        ),
+      );
+
+      await expect(apiFetch("/echo")).resolves.toEqual({ ok: true });
+      expect(seenTokens).toEqual(["Bearer stale", "Bearer fresh"]);
+      expect(localStorage.getItem(TOKEN_KEY)).toBe("fresh");
+    });
+
+    it("gives up with the original 401 when the refresh is refused", async () => {
+      localStorage.setItem(TOKEN_KEY, "stale");
+      const seenTokens = expireTokenUntilRefreshed();
+      server.use(
+        http.post("/api/auth/refresh", () =>
+          HttpResponse.json(
+            { detail: "Invalid refresh token" },
+            { status: 401 },
+          ),
+        ),
+      );
+
+      await expect(apiFetch("/echo")).rejects.toMatchObject({ status: 401 });
+      expect(seenTokens).toEqual(["Bearer stale"]);
+    });
+
+    it("does not try to refresh when nobody is signed in", async () => {
+      // No refresh handler: an attempt would fail the test as an unhandled request.
+      expireTokenUntilRefreshed();
+      await expect(apiFetch("/echo")).rejects.toMatchObject({ status: 401 });
+    });
+
+    it("does not try to refresh a rejected login", async () => {
+      localStorage.setItem(TOKEN_KEY, "stale");
+      server.use(
+        http.post("/api/auth/login", () =>
+          HttpResponse.json(
+            { detail: "Incorrect email or password" },
+            { status: 401 },
+          ),
+        ),
+      );
+      await expect(
+        apiFetch("/auth/login", {
+          method: "POST",
+          body: new URLSearchParams(),
+        }),
+      ).rejects.toMatchObject({ status: 401 });
+    });
+  });
 });

@@ -127,14 +127,35 @@ describe("route guards", () => {
     ).toBeInTheDocument();
   });
 
-  it("drops a stored token the backend rejects and shows the sign-in page", async () => {
+  it("stays signed in when the access token expires but the session is still valid", async () => {
+    localStorage.setItem(TOKEN_KEY, "expired-token");
+    server.use(
+      http.get("/api/auth/me", ({ request }) =>
+        request.headers.get("Authorization") === `Bearer ${ISSUED_TOKEN}`
+          ? HttpResponse.json(LEAD)
+          : HttpResponse.json({ detail: "Expired" }, { status: 401 }),
+      ),
+      http.post("/api/auth/refresh", () =>
+        HttpResponse.json({ access_token: ISSUED_TOKEN, token_type: "bearer" }),
+      ),
+    );
+    serveClubList();
+    renderApp("/");
+
+    expect(
+      await screen.findByRole("heading", { name: "My clubs" }),
+    ).toBeInTheDocument();
+    expect(localStorage.getItem(TOKEN_KEY)).toBe(ISSUED_TOKEN);
+  });
+
+  it("signs out when the session itself has expired", async () => {
     localStorage.setItem(TOKEN_KEY, "expired-token");
     server.use(
       http.get("/api/auth/me", () =>
-        HttpResponse.json(
-          { detail: "Could not validate credentials" },
-          { status: 401 },
-        ),
+        HttpResponse.json({ detail: "Expired" }, { status: 401 }),
+      ),
+      http.post("/api/auth/refresh", () =>
+        HttpResponse.json({ detail: "Invalid refresh token" }, { status: 401 }),
       ),
     );
     renderApp("/");
@@ -142,6 +163,29 @@ describe("route guards", () => {
     expect(
       await screen.findByRole("heading", { name: "Sign In" }),
     ).toBeInTheDocument();
+    expect(localStorage.getItem(TOKEN_KEY)).toBeNull();
+  });
+
+  it("revokes the session on the server when signing out", async () => {
+    let loggedOut = false;
+    server.use(
+      http.post("/api/auth/logout", () => {
+        loggedOut = true;
+        return new HttpResponse(null, { status: 204 });
+      }),
+    );
+    serveClubList();
+    const { user } = renderApp("/", { signedInAs: LEAD });
+
+    await user.click(await screen.findByRole("button", { name: /lena lead/i }));
+    await user.click(
+      await screen.findByRole("menuitem", { name: /sign out/i }),
+    );
+
+    expect(
+      await screen.findByRole("heading", { name: "Sign In" }),
+    ).toBeInTheDocument();
+    expect(loggedOut).toBe(true);
     expect(localStorage.getItem(TOKEN_KEY)).toBeNull();
   });
 

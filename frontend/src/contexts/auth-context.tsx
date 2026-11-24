@@ -39,6 +39,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = () => {
+    // Revoke the refresh cookie. Signing out locally doesn't wait for it: with
+    // the access token gone the app never asks to refresh, so a failed revoke
+    // leaves nothing usable behind in this browser.
+    apiFetch("/auth/logout", { method: "POST" }).catch(() => undefined);
     localStorage.removeItem(TOKEN_KEY);
     setToken(null);
     queryClient.clear();

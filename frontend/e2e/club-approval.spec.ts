@@ -128,4 +128,20 @@ test("a lead's club goes from draft to approved by an admin", async ({
       leadPage.getByRole("button", { name: /submit/i }),
     ).not.toBeVisible();
   });
+
+  await test.step("the refresh cookie works through the proxy until sign-out", async () => {
+    const refreshStatus = () =>
+      leadPage.evaluate(
+        async () =>
+          (await fetch("/api/auth/refresh", { method: "POST" })).status,
+      );
+    expect(await refreshStatus()).toBe(200);
+
+    await leadPage.getByRole("button", { name: /lena lead/i }).click();
+    await leadPage.getByRole("menuitem", { name: /sign out/i }).click();
+    await expect(
+      leadPage.getByRole("heading", { name: "Sign In" }),
+    ).toBeVisible();
+    await expect.poll(refreshStatus).toBe(401);
+  });
 });
