@@ -1,6 +1,14 @@
 from datetime import datetime
+from typing import Annotated
 
-from pydantic import AnyHttpUrl, BaseModel, EmailStr, Field, field_validator
+from pydantic import (
+    AnyHttpUrl,
+    BaseModel,
+    EmailStr,
+    Field,
+    StringConstraints,
+    field_validator,
+)
 
 from app.models import (
     ClubStatus,
@@ -9,6 +17,9 @@ from app.models import (
     RequirementType,
     UserRole,
 )
+
+# Trimmed, then required to be non-empty: "   " is as missing as "".
+NonBlankStr = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
 
 
 class UserRegisterRequest(BaseModel):
@@ -27,13 +38,13 @@ class UserOut(BaseModel):
 
 
 class ClubCreateRequest(BaseModel):
-    name: str
-    description: str
+    name: NonBlankStr
+    description: NonBlankStr
 
 
 class ClubUpdateRequest(BaseModel):
-    name: str | None = None
-    description: str | None = None
+    name: NonBlankStr | None = None
+    description: NonBlankStr | None = None
 
 
 class ClubOut(BaseModel):

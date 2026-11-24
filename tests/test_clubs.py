@@ -24,6 +24,18 @@ def test_create_missing_field_is_422(client, lead, missing):
     assert client.post("/clubs", json=body, headers=auth(lead)).status_code == 422
 
 
+@pytest.mark.parametrize("field", ["name", "description"])
+@pytest.mark.parametrize("blank", ["", "   "])
+def test_create_blank_field_is_422(client, lead, field, blank):
+    body = {"name": "Chess Club", "description": "We play chess", field: blank}
+    assert client.post("/clubs", json=body, headers=auth(lead)).status_code == 422
+
+
+def test_create_trims_name_and_description(client, lead):
+    club = create_club(client, lead, name="  Chess Club ", description=" We play chess\n")
+    assert (club["name"], club["description"]) == ("Chess Club", "We play chess")
+
+
 def test_create_requires_authentication(client):
     response = client.post("/clubs", json={"name": "Chess", "description": "Chess"})
     assert response.status_code == 401
@@ -130,6 +142,16 @@ def test_update_changes_only_the_fields_sent(client, db, lead, body, expected):
     db.refresh(club)
     assert (club.name, club.description) == expected
     assert (response.json()["name"], response.json()["description"]) == expected
+
+
+@pytest.mark.parametrize("field", ["name", "description"])
+def test_update_to_blank_is_422_and_changes_nothing(client, db, lead, field):
+    club = make_club(db, lead)
+
+    assert patch(client, club.id, lead, {field: "   "}).status_code == 422
+    db.expire_all()
+    stored = db.get(Clubs, club.id)
+    assert (stored.name, stored.description) == ("Chess Club", "We play chess")
 
 
 def test_update_allowed_while_changes_requested(client, db, lead):
