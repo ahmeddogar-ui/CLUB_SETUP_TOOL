@@ -1,10 +1,19 @@
+from datetime import UTC, datetime, timedelta
+
 from fastapi import HTTPException, status
 from psycopg2.errors import UniqueViolation
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.core.security import create_access_token, hash_password, verify_password
-from app.models import User, UserRole
+from app.core.config import settings
+from app.core.security import (
+    create_access_token,
+    hash_password,
+    hash_refresh_token,
+    new_refresh_token,
+    verify_password,
+)
+from app.models import RefreshToken, User, UserRole
 
 UNIQUE_EMAIL_CONSTRAINT = "uq_users_email"
 
@@ -54,9 +63,53 @@ def verify_credentials(db: Session, email: str, password: str) -> User:
     return user
 
 
-def authenticate_user(db: Session, email: str, password: str) -> str:
-    """Returns a fresh access token, or raises 401."""
-    return create_access_token(verify_credentials(db, email, password).id)
+def log_in(db: Session, email: str, password: str) -> tuple[str, str]:
+    """Returns (access token, refresh token), or raises 401."""
+    user = verify_credentials(db, email, password)
+    refresh_token = new_refresh_token()
+    db.add(
+        RefreshToken(
+            user_id=user.id,
+            token_hash=hash_refresh_token(refresh_token),
+            expires_at=datetime.now(UTC)
+            + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS),
+        )
+    )
+    db.commit()
+    return create_access_token(user.id), refresh_token
+
+
+def _find_refresh_token(db: Session, refresh_token: str) -> RefreshToken | None:
+    return (
+        db.query(RefreshToken)
+        .filter(RefreshToken.token_hash == hash_refresh_token(refresh_token))
+        .first()
+    )
+
+
+def refresh_access_token(db: Session, refresh_token: str) -> str:
+    """Returns a new access token for a known, unexpired, unrevoked refresh
+    token, or raises 401."""
+    stored = _find_refresh_token(db, refresh_token)
+    if (
+        stored is None
+        or stored.revoked_at is not None
+        or stored.expires_at <= datetime.now(UTC)
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid refresh token",
+        )
+    return create_access_token(stored.user_id)
+
+
+def revoke_refresh_token(db: Session, refresh_token: str) -> None:
+    """Idempotent: an unknown or already-revoked token is left as it is."""
+    stored = _find_refresh_token(db, refresh_token)
+    if stored is None or stored.revoked_at is not None:
+        return
+    stored.revoked_at = datetime.now(UTC)
+    db.commit()
 
 
 def make_admin(db: Session, email: str) -> User | None:
