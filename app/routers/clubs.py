@@ -29,6 +29,7 @@ from app.services.clubs import (  # noqa: F401  (INITIAL_REQUIREMENTS re-exporte
 
 router = APIRouter(prefix="/clubs", tags=["clubs"])
 
+
 @router.post("", response_model=ClubOut, status_code=status.HTTP_201_CREATED)
 def create_club(
     payload: ClubCreateRequest,
@@ -128,7 +129,9 @@ def request_changes(
     db: DbSession,
     current_user: User = Depends(require_role(UserRole.admin)),
 ):
-    return review_club(db, club_id, ClubStatus.changes_requested, current_user, payload.note)
+    return review_club(
+        db, club_id, ClubStatus.changes_requested, current_user, payload.note
+    )
 
 
 @router.post("/{club_id}/approve", response_model=ClubOut)

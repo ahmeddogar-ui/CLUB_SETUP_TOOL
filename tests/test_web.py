@@ -55,7 +55,9 @@ def test_login_wrong_password_shows_error(client, lead):
 
 
 def test_post_without_csrf_token_is_forbidden(client, lead):
-    response = client.post("/login", data={"email": lead.email, "password": "password"}, **NO_FOLLOW)
+    response = client.post(
+        "/login", data={"email": lead.email, "password": "password"}, **NO_FOLLOW
+    )
     assert response.status_code == 403
 
 
@@ -83,10 +85,18 @@ def test_logged_out_pages_redirect_to_login(client):
 def test_register_then_login(client):
     response = client.post(
         "/register",
-        data={"name": "Ada", "email": "ada@example.com", "password": "pw", "csrf_token": _token(client, "/register")},
+        data={
+            "name": "Ada",
+            "email": "ada@example.com",
+            "password": "pw",
+            "csrf_token": _token(client, "/register"),
+        },
         **NO_FOLLOW,
     )
-    assert (response.status_code, response.headers["location"]) == (303, "/login?registered=1")
+    assert (response.status_code, response.headers["location"]) == (
+        303,
+        "/login?registered=1",
+    )
 
 
 def test_admin_dashboard_redirects_to_queue(client, admin):
@@ -105,7 +115,9 @@ def test_dashboard_lists_only_own_clubs(lead_client, db, lead, other_lead):
 
 
 def test_new_club_creates_and_redirects_to_detail(lead_client, db):
-    response = post(lead_client, "/club/new", {"name": "Go Club", "description": "Stones"})
+    response = post(
+        lead_client, "/club/new", {"name": "Go Club", "description": "Stones"}
+    )
     assert response.status_code == 303
     club = db.query(Clubs).filter(Clubs.name == "Go Club").one()
     assert response.headers["location"] == f"/club/{club.id}"
@@ -145,16 +157,25 @@ def test_detail_of_missing_club_is_404(lead_client):
 def test_saving_a_link_marks_requirement_submitted(lead_client, db, lead):
     club = make_club(db, lead)
     response = post(
-        lead_client, f"/club/{club.id}/requirements/constitution/link", {"link_url": "https://example.com/c"}
+        lead_client,
+        f"/club/{club.id}/requirements/constitution/link",
+        {"link_url": "https://example.com/c"},
     )
     assert response.status_code == 303
     row = requirements_for(db, club.id)["constitution"]
-    assert (row.link_url, row.status) == ("https://example.com/c", RequirementStatus.submitted)
+    assert (row.link_url, row.status) == (
+        "https://example.com/c",
+        RequirementStatus.submitted,
+    )
 
 
 def test_bad_link_is_rejected_with_message(lead_client, db, lead):
     club = make_club(db, lead)
-    response = post(lead_client, f"/club/{club.id}/requirements/constitution/link", {"link_url": "not a url"})
+    response = post(
+        lead_client,
+        f"/club/{club.id}/requirements/constitution/link",
+        {"link_url": "not a url"},
+    )
     assert response.status_code == 422 and "http" in response.text
     assert requirements_for(db, club.id)["constitution"].link_url is None
 
@@ -162,7 +183,9 @@ def test_bad_link_is_rejected_with_message(lead_client, db, lead):
 def test_link_on_submitted_club_is_refused(lead_client, db, lead):
     club = make_club(db, lead, status=ClubStatus.submitted)
     response = post(
-        lead_client, f"/club/{club.id}/requirements/constitution/link", {"link_url": "https://example.com/c"}
+        lead_client,
+        f"/club/{club.id}/requirements/constitution/link",
+        {"link_url": "https://example.com/c"},
     )
     assert response.status_code == 409 and "already been submitted" in response.text
 
@@ -237,7 +260,9 @@ def test_admin_sees_review_controls(admin_client, db, lead):
 
 def test_admin_cannot_open_or_submit_the_new_club_form(admin_client, db, admin):
     assert admin_client.get("/club/new", **NO_FOLLOW).status_code == 403
-    response = post(admin_client, "/club/new", {"name": "Admin Club", "description": "x"})
+    response = post(
+        admin_client, "/club/new", {"name": "Admin Club", "description": "x"}
+    )
     assert response.status_code == 403
     assert db.query(Clubs).filter(Clubs.submitter_id == admin.id).count() == 0
 
@@ -256,9 +281,16 @@ def test_admin_start_review(admin_client, db, lead):
 
 
 def test_full_review_flow_to_approval(admin_client, db, lead):
-    club = make_club(db, lead, status=ClubStatus.under_review, requirement_status=RequirementStatus.submitted)
+    club = make_club(
+        db,
+        lead,
+        status=ClubStatus.under_review,
+        requirement_status=RequirementStatus.submitted,
+    )
     blocked = post(admin_client, f"/club/{club.id}/review/approve")
-    assert blocked.status_code == 409 and "requirements not all approved" in blocked.text
+    assert (
+        blocked.status_code == 409 and "requirements not all approved" in blocked.text
+    )
     for requirement_type in requirements_for(db, club.id):
         post(admin_client, f"/club/{club.id}/requirements/{requirement_type}/approve")
     assert post(admin_client, f"/club/{club.id}/review/approve").status_code == 303
@@ -268,16 +300,32 @@ def test_full_review_flow_to_approval(admin_client, db, lead):
 
 def test_request_changes_needs_a_note_then_records_it(admin_client, db, lead):
     club = make_club(db, lead, status=ClubStatus.under_review)
-    blocked = post(admin_client, f"/club/{club.id}/review/request-changes", {"note": "  "})
+    blocked = post(
+        admin_client, f"/club/{club.id}/review/request-changes", {"note": "  "}
+    )
     assert blocked.status_code == 409 and "note is required" in blocked.text
-    assert post(admin_client, f"/club/{club.id}/review/request-changes", {"note": "fix budget"}).status_code == 303
+    assert (
+        post(
+            admin_client,
+            f"/club/{club.id}/review/request-changes",
+            {"note": "fix budget"},
+        ).status_code
+        == 303
+    )
     db.refresh(club)
     assert club.status == ClubStatus.changes_requested
     assert "fix budget" in admin_client.get(f"/club/{club.id}").text
 
 
-def test_reject_requirement_needs_note_and_shows_it_to_lead(admin_client, client, db, lead):
-    club = make_club(db, lead, status=ClubStatus.under_review, requirement_status=RequirementStatus.submitted)
+def test_reject_requirement_needs_note_and_shows_it_to_lead(
+    admin_client, client, db, lead
+):
+    club = make_club(
+        db,
+        lead,
+        status=ClubStatus.under_review,
+        requirement_status=RequirementStatus.submitted,
+    )
     url = f"/club/{club.id}/requirements/budget/reject"
     assert post(admin_client, url, {"note": ""}).status_code == 422
     assert post(admin_client, url, {"note": "numbers dont add up"}).status_code == 303
@@ -290,7 +338,10 @@ def test_reject_requirement_needs_note_and_shows_it_to_lead(admin_client, client
 def test_club_lead_cannot_use_review_routes(lead_client, db, lead):
     club = make_club(db, lead, status=ClubStatus.submitted)
     assert post(lead_client, f"/club/{club.id}/review/start").status_code == 403
-    assert post(lead_client, f"/club/{club.id}/requirements/budget/approve").status_code == 403
+    assert (
+        post(lead_client, f"/club/{club.id}/requirements/budget/approve").status_code
+        == 403
+    )
     db.refresh(club)
     assert club.status == ClubStatus.submitted
 
@@ -309,8 +360,11 @@ def test_full_journey_lead_submits_admin_approves(client, db, lead, admin):
     club = db.query(Clubs).filter(Clubs.name == "Robotics").one()
 
     for requirement_type in ("constitution", "exec_list", "budget", "advisor_form"):
-        post(client, f"/club/{club.id}/requirements/{requirement_type}/link",
-             {"link_url": f"https://example.com/{requirement_type}"})
+        post(
+            client,
+            f"/club/{club.id}/requirements/{requirement_type}/link",
+            {"link_url": f"https://example.com/{requirement_type}"},
+        )
     assert post(client, f"/club/{club.id}/submit").status_code == 303
     post(client, "/logout")
 

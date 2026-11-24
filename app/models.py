@@ -24,9 +24,11 @@ convention = {
 class Base(DeclarativeBase):
     metadata = MetaData(naming_convention=convention)
 
+
 class UserRole(str, Enum):
     admin = "admin"
     club_lead = "club_lead"
+
 
 class ClubStatus(str, Enum):
     drafting = "drafting"
@@ -36,9 +38,11 @@ class ClubStatus(str, Enum):
     approved = "approved"
     rejected = "rejected"
 
+
 class RequirementKind(str, Enum):
     document = "document"
     checklist = "checklist"
+
 
 class RequirementType(str, Enum):
     constitution = "constitution"
@@ -48,11 +52,13 @@ class RequirementType(str, Enum):
     bank_account_setup = "bank_account_setup"
     exec_onboarding = "exec_onboarding"
 
+
 class RequirementStatus(str, Enum):
     pending = "pending"
     submitted = "submitted"
     approved = "approved"
     rejected = "rejected"
+
 
 class User(Base):
     __tablename__ = "users"
@@ -60,9 +66,7 @@ class User(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str]
-    role: Mapped[UserRole] = mapped_column(
-        SAEnum(UserRole)
-    )
+    role: Mapped[UserRole] = mapped_column(SAEnum(UserRole))
     email: Mapped[str] = mapped_column(unique=True)
     password_hash: Mapped[str]
     created_at: Mapped[datetime] = mapped_column(
@@ -76,12 +80,8 @@ class Clubs(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str]
     description: Mapped[str]
-    status: Mapped[ClubStatus] = mapped_column(
-        SAEnum(ClubStatus)
-    )
-    submitter_id: Mapped[int] = mapped_column(
-    ForeignKey("users.id")
-)
+    status: Mapped[ClubStatus] = mapped_column(SAEnum(ClubStatus))
+    submitter_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=text("now()")
     )
@@ -92,14 +92,10 @@ class Clubs(Base):
 
 class Requirement(Base):
     __tablename__ = "requirements"
-    __table_args__ = (
-        UniqueConstraint("club_id", "requirement_type"),
-    )
+    __table_args__ = (UniqueConstraint("club_id", "requirement_type"),)
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    club_id: Mapped[int] = mapped_column(
-        ForeignKey("clubs.id", ondelete="CASCADE")
-    )
+    club_id: Mapped[int] = mapped_column(ForeignKey("clubs.id", ondelete="CASCADE"))
     requirement_type: Mapped[RequirementType] = mapped_column(
         SAEnum(RequirementType, name="requirement_type")
     )
@@ -121,12 +117,8 @@ class ClubEvent(Base):
     __tablename__ = "club_events"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    club_id: Mapped[int] = mapped_column(
-        ForeignKey("clubs.id", ondelete="CASCADE")
-    )
-    actor_id: Mapped[int] = mapped_column(
-        ForeignKey("users.id")
-    )
+    club_id: Mapped[int] = mapped_column(ForeignKey("clubs.id", ondelete="CASCADE"))
+    actor_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
     # Club-level: "created", "submitted", "review_started", "changes_requested",
     # "resubmitted", "approved", "rejected".
     # Requirement-level: "requirement_submitted", "requirement_approved",
@@ -138,18 +130,12 @@ class ClubEvent(Base):
     # Left as str, not an Enum, until that vocabulary stops growing -- each new value
     # would otherwise cost an ALTER TYPE migration. Convert once it settles.
     event_type: Mapped[str]
-    requirement_id: Mapped[int | None] = mapped_column(
-        ForeignKey("requirements.id")
-    )
+    requirement_id: Mapped[int | None] = mapped_column(ForeignKey("requirements.id"))
     # For requirement_submitted: the exact link provided, so the history shows which
     # version of a document each later approve/reject decision was about.
     link_url: Mapped[str | None]
-    from_status: Mapped[ClubStatus | None] = mapped_column(
-        SAEnum(ClubStatus)
-    )
-    to_status: Mapped[ClubStatus] = mapped_column(
-        SAEnum(ClubStatus)
-    )
+    from_status: Mapped[ClubStatus | None] = mapped_column(SAEnum(ClubStatus))
+    to_status: Mapped[ClubStatus] = mapped_column(SAEnum(ClubStatus))
     # Reviewer's reason for changes_requested / rejected. Stored per event so each
     # review round keeps its own note instead of a later one overwriting it.
     note: Mapped[str | None]

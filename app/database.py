@@ -9,6 +9,7 @@ from app.core.config import settings
 engine = create_engine(settings.DATABASE_URL, pool_pre_ping=True)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
+
 def get_db():
     db = SessionLocal()
     try:
@@ -18,5 +19,6 @@ def get_db():
         raise
     finally:
         db.close()
+
 
 DbSession: TypeAlias = Annotated[Session, Depends(get_db)]

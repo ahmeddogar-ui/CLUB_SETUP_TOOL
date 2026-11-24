@@ -39,9 +39,7 @@ def test_row_is_visible_during_the_test_then_gone_after_rollback(engine):
     # connection. If the row survived, the outer transaction was committed
     # somewhere instead of rolled back, and the harness can't be trusted.
     with engine.connect() as check_connection:
-        found = check_connection.execute(
-            select(User).where(User.id == user_id)
-        ).first()
+        found = check_connection.execute(select(User).where(User.id == user_id)).first()
     assert found is None
 
 

@@ -59,7 +59,10 @@ def test_drafting_to_submitted(db, draft, lead):
     club = attempt_transition(db, draft, ClubStatus.submitted, lead)
     assert club.status == ClubStatus.submitted
     [event] = transition_events(db, club.id)
-    assert (event.from_status, event.to_status) == (ClubStatus.drafting, ClubStatus.submitted)
+    assert (event.from_status, event.to_status) == (
+        ClubStatus.drafting,
+        ClubStatus.submitted,
+    )
     assert event.event_type == "submitted"
     assert event.actor_id == lead.id
 
@@ -68,7 +71,10 @@ def test_submitted_to_under_review(db, submitted, admin):
     club = attempt_transition(db, submitted, ClubStatus.under_review, admin)
     assert club.status == ClubStatus.under_review
     event = transition_events(db, club.id)[-1]
-    assert (event.from_status, event.to_status) == (ClubStatus.submitted, ClubStatus.under_review)
+    assert (event.from_status, event.to_status) == (
+        ClubStatus.submitted,
+        ClubStatus.under_review,
+    )
     assert len(transition_events(db, club.id)) == 2
 
 
@@ -77,13 +83,20 @@ def test_under_review_to_approved(db, under_review, admin):
     club = attempt_transition(db, under_review, ClubStatus.approved, admin)
     assert club.status == ClubStatus.approved
     event = transition_events(db, club.id)[-1]
-    assert (event.from_status, event.to_status) == (ClubStatus.under_review, ClubStatus.approved)
+    assert (event.from_status, event.to_status) == (
+        ClubStatus.under_review,
+        ClubStatus.approved,
+    )
     assert len(transition_events(db, club.id)) == 3
 
 
-@pytest.mark.parametrize("to_status", [ClubStatus.changes_requested, ClubStatus.rejected])
+@pytest.mark.parametrize(
+    "to_status", [ClubStatus.changes_requested, ClubStatus.rejected]
+)
 def test_under_review_to_note_required_statuses(db, under_review, admin, to_status):
-    club = attempt_transition(db, under_review, to_status, admin, "  Budget is missing totals  ")
+    club = attempt_transition(
+        db, under_review, to_status, admin, "  Budget is missing totals  "
+    )
     assert club.status == to_status
     event = transition_events(db, club.id)[-1]
     assert (event.from_status, event.to_status) == (ClubStatus.under_review, to_status)
@@ -92,16 +105,23 @@ def test_under_review_to_note_required_statuses(db, under_review, admin, to_stat
 
 
 def test_changes_requested_to_submitted(db, under_review, admin, lead):
-    club = attempt_transition(db, under_review, ClubStatus.changes_requested, admin, "fix it")
+    club = attempt_transition(
+        db, under_review, ClubStatus.changes_requested, admin, "fix it"
+    )
     club = attempt_transition(db, club, ClubStatus.submitted, lead)
     assert club.status == ClubStatus.submitted
     event = transition_events(db, club.id)[-1]
     assert event.event_type == "resubmitted"
-    assert (event.from_status, event.to_status) == (ClubStatus.changes_requested, ClubStatus.submitted)
+    assert (event.from_status, event.to_status) == (
+        ClubStatus.changes_requested,
+        ClubStatus.submitted,
+    )
 
 
 def test_full_resubmit_loop_keeps_all_history(db, under_review, admin, lead):
-    club = attempt_transition(db, under_review, ClubStatus.changes_requested, admin, "round 1")
+    club = attempt_transition(
+        db, under_review, ClubStatus.changes_requested, admin, "round 1"
+    )
     club = attempt_transition(db, club, ClubStatus.submitted, lead)
     club = attempt_transition(db, club, ClubStatus.under_review, admin)
     club = attempt_transition(db, club, ClubStatus.changes_requested, admin, "round 2")
@@ -173,7 +193,9 @@ def test_club_lead_cannot_start_review_on_own_club(db, submitted, lead):
         (ClubStatus.changes_requested, "fix"),
     ],
 )
-def test_club_lead_cannot_perform_admin_decisions(db, under_review, lead, to_status, note):
+def test_club_lead_cannot_perform_admin_decisions(
+    db, under_review, lead, to_status, note
+):
     approve_all_requirements(db, under_review.id)
     with pytest.raises(InvalidTransition):
         attempt_transition(db, under_review, to_status, lead, note)
@@ -257,7 +279,9 @@ def test_approve_blocked_by_any_unapproved_requirement(
 # --- note guard ------------------------------------------------------------
 
 
-@pytest.mark.parametrize("to_status", [ClubStatus.changes_requested, ClubStatus.rejected])
+@pytest.mark.parametrize(
+    "to_status", [ClubStatus.changes_requested, ClubStatus.rejected]
+)
 @pytest.mark.parametrize("note", [None, "", "   ", "\n\t"])
 def test_note_required(db, under_review, admin, to_status, note):
     with pytest.raises(TransitionBlocked, match="note is required"):
@@ -278,7 +302,10 @@ def test_failed_event_write_rolls_back_status_change(db, submitted):
 
     db.expire_all()
     assert load_club(db, submitted.id).status == ClubStatus.submitted
-    assert all(e.to_status != ClubStatus.under_review for e in transition_events(db, submitted.id))
+    assert all(
+        e.to_status != ClubStatus.under_review
+        for e in transition_events(db, submitted.id)
+    )
 
 
 @pytest.mark.parametrize(

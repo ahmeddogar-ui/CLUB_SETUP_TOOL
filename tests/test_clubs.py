@@ -32,7 +32,9 @@ def test_create_blank_field_is_422(client, lead, field, blank):
 
 
 def test_create_trims_name_and_description(client, lead):
-    club = create_club(client, lead, name="  Chess Club ", description=" We play chess\n")
+    club = create_club(
+        client, lead, name="  Chess Club ", description=" We play chess\n"
+    )
     assert (club["name"], club["description"]) == ("Chess Club", "We play chess")
 
 
@@ -170,7 +172,9 @@ def test_update_after_submission_is_409_and_changes_nothing(client, db, lead, st
     assert db.get(Clubs, club.id).name == "Chess Club"
 
 
-def test_update_someone_elses_club_is_403_before_the_status_check(client, db, lead, other_lead):
+def test_update_someone_elses_club_is_403_before_the_status_check(
+    client, db, lead, other_lead
+):
     # A submitted club would be a 409 for its owner; a stranger must see 403 instead.
     club = make_club(db, lead, status=ClubStatus.submitted)
 

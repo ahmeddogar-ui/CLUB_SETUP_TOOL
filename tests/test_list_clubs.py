@@ -81,7 +81,9 @@ def test_admin_queue_submitted_oldest_first(client, admin, clubs):
 
 def test_admin_queue_submitted_and_under_review(client, admin, clubs):
     result = list_clubs(
-        client, admin, [("status", "submitted"), ("status", "under_review"), ("sort", "oldest")]
+        client,
+        admin,
+        [("status", "submitted"), ("status", "under_review"), ("sort", "oldest")],
     )
     assert ids(result) == [clubs["c"], clubs["e"], clubs["d"], clubs["a"]]
 
@@ -107,7 +109,9 @@ def test_admin_recently_decided_view(client, db, admin, clubs):
     set_state(db, clubs["b"], ClubStatus.approved, days_ago=3)
     set_state(db, clubs["d"], ClubStatus.rejected, days_ago=1)
     result = list_clubs(
-        client, admin, [("status", "approved"), ("status", "rejected"), ("sort", "newest")]
+        client,
+        admin,
+        [("status", "approved"), ("status", "rejected"), ("sort", "newest")],
     )
     assert ids(result) == [clubs["d"], clubs["b"]]
 

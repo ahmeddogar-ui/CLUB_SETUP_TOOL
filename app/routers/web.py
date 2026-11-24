@@ -135,7 +135,9 @@ def register_submit(
             status_code=exc.status_code,
         )
 
-    return RedirectResponse("/login?registered=1", status_code=status.HTTP_303_SEE_OTHER)
+    return RedirectResponse(
+        "/login?registered=1", status_code=status.HTTP_303_SEE_OTHER
+    )
 
 
 @router.get("/dashboard")
@@ -261,7 +263,10 @@ def club_detail(
     return _render_club(request, db, club, current_user)
 
 
-@router.post("/club/{club_id}/requirements/{requirement_type}/link", dependencies=[Depends(verify_csrf)])
+@router.post(
+    "/club/{club_id}/requirements/{requirement_type}/link",
+    dependencies=[Depends(verify_csrf)],
+)
 def club_requirement_link(
     request: Request,
     club_id: int,
@@ -281,12 +286,22 @@ def club_requirement_link(
         )
     except ValidationError:
         return _render_club(
-            request, db, club, current_user,
+            request,
+            db,
+            club,
+            current_user,
             error="Enter a full link starting with http:// or https://",
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
         )
     except HTTPException as exc:
-        return _render_club(request, db, club, current_user, error=exc.detail, status_code=exc.status_code)
+        return _render_club(
+            request,
+            db,
+            club,
+            current_user,
+            error=exc.detail,
+            status_code=exc.status_code,
+        )
     return RedirectResponse(f"/club/{club_id}", status_code=status.HTTP_303_SEE_OTHER)
 
 
@@ -307,7 +322,14 @@ def club_submit(
         else:
             submit_club_for_user(db, club_id, current_user)
     except HTTPException as exc:
-        return _render_club(request, db, club, current_user, error=exc.detail, status_code=exc.status_code)
+        return _render_club(
+            request,
+            db,
+            club,
+            current_user,
+            error=exc.detail,
+            status_code=exc.status_code,
+        )
     return RedirectResponse(f"/club/{club_id}", status_code=status.HTTP_303_SEE_OTHER)
 
 
@@ -330,14 +352,25 @@ def club_review(
 ):
     to_status = REVIEW_ACTIONS.get(action)
     if to_status is None:
-        return _error_page(request, current_user, HTTPException(status_code=404, detail="Unknown review action"))
+        return _error_page(
+            request,
+            current_user,
+            HTTPException(status_code=404, detail="Unknown review action"),
+        )
     try:
         club = get_club_or_404(db, club_id)
         review_club(db, club_id, to_status, current_user, note)
     except HTTPException as exc:
         if exc.status_code == status.HTTP_404_NOT_FOUND:
             return _error_page(request, current_user, exc)
-        return _render_club(request, db, club, current_user, error=exc.detail, status_code=exc.status_code)
+        return _render_club(
+            request,
+            db,
+            club,
+            current_user,
+            error=exc.detail,
+            status_code=exc.status_code,
+        )
     return RedirectResponse(f"/club/{club_id}", status_code=status.HTTP_303_SEE_OTHER)
 
 
@@ -355,26 +388,42 @@ def club_requirement_review(
     note: str = Form(""),
 ):
     if decision not in ("approve", "reject"):
-        return _error_page(request, current_user, HTTPException(status_code=404, detail="Unknown decision"))
+        return _error_page(
+            request,
+            current_user,
+            HTTPException(status_code=404, detail="Unknown decision"),
+        )
     try:
         club = get_club_or_404(db, club_id)
     except HTTPException as exc:
         return _error_page(request, current_user, exc)
     try:
         if decision == "approve":
-            requirement_service.approve_requirement(db, club_id, requirement_type, current_user, note)
+            requirement_service.approve_requirement(
+                db, club_id, requirement_type, current_user, note
+            )
         else:
             requirement_service.reject_requirement(
                 db, club_id, requirement_type, current_user, NoteRequest(note=note).note
             )
     except ValidationError:
         return _render_club(
-            request, db, club, current_user,
+            request,
+            db,
+            club,
+            current_user,
             error="a note is required for this action",
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
         )
     except HTTPException as exc:
-        return _render_club(request, db, club, current_user, error=exc.detail, status_code=exc.status_code)
+        return _render_club(
+            request,
+            db,
+            club,
+            current_user,
+            error=exc.detail,
+            status_code=exc.status_code,
+        )
     return RedirectResponse(f"/club/{club_id}", status_code=status.HTTP_303_SEE_OTHER)
 
 

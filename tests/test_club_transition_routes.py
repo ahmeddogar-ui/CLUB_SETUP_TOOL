@@ -43,7 +43,11 @@ def under_review(client, submitted, admin):
 @pytest.fixture
 def changes_requested(client, under_review, admin):
     response = post(
-        client, under_review["id"], "request-changes", admin, json={"note": "fix budget"}
+        client,
+        under_review["id"],
+        "request-changes",
+        admin,
+        json={"note": "fix budget"},
     )
     assert response.status_code == 200, response.text
     return response.json()
@@ -94,7 +98,9 @@ def test_submit_requires_auth(client, draft):
 # --- start-review (ticket 20) ----------------------------------------------
 
 
-def test_start_review_moves_submitted_and_records_one_event(client, db, submitted, admin):
+def test_start_review_moves_submitted_and_records_one_event(
+    client, db, submitted, admin
+):
     before = event_count(db, submitted["id"])
     response = post(client, submitted["id"], "start-review", admin)
     assert response.status_code == 200
@@ -130,10 +136,15 @@ def test_note_required(client, db, under_review, admin, action, body):
 
 
 @pytest.mark.parametrize(
-    ("action", "expected"), [("request-changes", "changes_requested"), ("reject", "rejected")]
+    ("action", "expected"),
+    [("request-changes", "changes_requested"), ("reject", "rejected")],
 )
-def test_note_actions_store_note_on_event(client, db, under_review, admin, action, expected):
-    response = post(client, under_review["id"], action, admin, json={"note": " Needs work "})
+def test_note_actions_store_note_on_event(
+    client, db, under_review, admin, action, expected
+):
+    response = post(
+        client, under_review["id"], action, admin, json={"note": " Needs work "}
+    )
     assert response.status_code == 200
     assert response.json()["status"] == expected
     event = (
@@ -168,7 +179,9 @@ def test_approve_when_every_requirement_approved(client, db, under_review, admin
     assert response.json()["status"] == "approved"
 
 
-def test_approve_blocked_names_outstanding_requirements(client, db, under_review, admin):
+def test_approve_blocked_names_outstanding_requirements(
+    client, db, under_review, admin
+):
     approve_all_requirements(db, under_review["id"])
     requirements = requirements_for(db, under_review["id"])
     requirements["budget"].status = RequirementStatus.rejected
@@ -196,18 +209,25 @@ def test_resubmit_moves_back_to_submitted(client, changes_requested, lead):
     assert response.json()["status"] == "submitted"
 
 
-def test_second_full_loop_accumulates_events(client, db, changes_requested, lead, admin):
+def test_second_full_loop_accumulates_events(
+    client, db, changes_requested, lead, admin
+):
     club_id = changes_requested["id"]
     assert post(client, club_id, "resubmit", lead).status_code == 200
     assert post(client, club_id, "start-review", admin).status_code == 200
     assert (
-        post(client, club_id, "request-changes", admin, json={"note": "round 2"}).status_code
+        post(
+            client, club_id, "request-changes", admin, json={"note": "round 2"}
+        ).status_code
         == 200
     )
     assert post(client, club_id, "resubmit", lead).status_code == 200
 
     events = (
-        db.query(ClubEvent).filter(ClubEvent.club_id == club_id).order_by(ClubEvent.id).all()
+        db.query(ClubEvent)
+        .filter(ClubEvent.club_id == club_id)
+        .order_by(ClubEvent.id)
+        .all()
     )
     assert [e.event_type for e in events] == [
         "created",
@@ -226,7 +246,9 @@ def test_second_full_loop_accumulates_events(client, db, changes_requested, lead
 
 
 def test_resubmit_someone_elses_club_is_403(client, changes_requested, other_lead):
-    assert post(client, changes_requested["id"], "resubmit", other_lead).status_code == 403
+    assert (
+        post(client, changes_requested["id"], "resubmit", other_lead).status_code == 403
+    )
 
 
 def test_resubmit_ownership_checked_before_status(client, draft, other_lead):
@@ -239,7 +261,9 @@ def test_resubmit_only_from_changes_requested(client, draft, lead):
 
 
 def test_resubmit_still_runs_submit_guard(client, db, changes_requested, lead):
-    requirements_for(db, changes_requested["id"])["budget"].status = RequirementStatus.rejected
+    requirements_for(db, changes_requested["id"])[
+        "budget"
+    ].status = RequirementStatus.rejected
     db.commit()
     response = post(client, changes_requested["id"], "resubmit", lead)
     assert response.status_code == 409

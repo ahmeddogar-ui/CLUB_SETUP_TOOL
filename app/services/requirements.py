@@ -138,7 +138,12 @@ def approve_requirement(
     requirement.status = RequirementStatus.approved
     requirement.reviewer_note = note.strip() if note and note.strip() else None
     _record_requirement_event(
-        db, club, requirement, "requirement_approved", admin, note=requirement.reviewer_note
+        db,
+        club,
+        requirement,
+        "requirement_approved",
+        admin,
+        note=requirement.reviewer_note,
     )
 
     db.commit()

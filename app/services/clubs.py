@@ -189,7 +189,11 @@ def resubmit_club_for_user(db: Session, club_id: int, user: User) -> Clubs:
 
 
 def review_club(
-    db: Session, club_id: int, to_status: ClubStatus, admin: User, note: str | None = None
+    db: Session,
+    club_id: int,
+    to_status: ClubStatus,
+    admin: User,
+    note: str | None = None,
 ) -> Clubs:
     """Admin-side transition (start-review / request-changes / approve / reject)."""
     club = get_club_or_404(db, club_id)

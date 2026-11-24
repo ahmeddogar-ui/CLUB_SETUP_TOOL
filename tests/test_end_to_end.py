@@ -16,7 +16,9 @@ def register_and_login(client, email):
         "/auth/register", json={"name": "Lead", "email": email, "password": "pw123456"}
     )
     assert response.status_code == 201, response.text
-    response = client.post("/auth/login", data={"username": email, "password": "pw123456"})
+    response = client.post(
+        "/auth/login", data={"username": email, "password": "pw123456"}
+    )
     assert response.status_code == 200, response.text
     return {"Authorization": f"Bearer {response.json()['access_token']}"}
 
@@ -31,7 +33,11 @@ def test_full_flow_to_approval(client, db):
     admin = auth(make_user(db, UserRole.admin))
 
     club = ok(
-        client.post("/clubs", json={"name": "Robotics", "description": "Build robots"}, headers=lead),
+        client.post(
+            "/clubs",
+            json={"name": "Robotics", "description": "Build robots"},
+            headers=lead,
+        ),
         201,
     )
     club_id = club["id"]
@@ -48,8 +54,14 @@ def test_full_flow_to_approval(client, db):
             )
         )
 
-    assert ok(client.post(f"/clubs/{club_id}/submit", headers=lead))["status"] == "submitted"
-    assert ok(client.post(f"/clubs/{club_id}/start-review", headers=admin))["status"] == "under_review"
+    assert (
+        ok(client.post(f"/clubs/{club_id}/submit", headers=lead))["status"]
+        == "submitted"
+    )
+    assert (
+        ok(client.post(f"/clubs/{club_id}/start-review", headers=admin))["status"]
+        == "under_review"
+    )
 
     # Approve is blocked until every requirement has been individually approved.
     blocked = client.post(f"/clubs/{club_id}/approve", headers=admin)
@@ -60,15 +72,24 @@ def test_full_flow_to_approval(client, db):
     for requirement_type in DOCUMENTS + CHECKLIST:
         body = ok(
             client.post(
-                f"/clubs/{club_id}/requirements/{requirement_type}/approve", headers=admin
+                f"/clubs/{club_id}/requirements/{requirement_type}/approve",
+                headers=admin,
             )
         )
         assert body["status"] == "approved"
 
-    assert ok(client.post(f"/clubs/{club_id}/approve", headers=admin))["status"] == "approved"
+    assert (
+        ok(client.post(f"/clubs/{club_id}/approve", headers=admin))["status"]
+        == "approved"
+    )
     assert ok(client.get(f"/clubs/{club_id}", headers=lead))["status"] == "approved"
 
-    events = db.query(ClubEvent).filter(ClubEvent.club_id == club_id).order_by(ClubEvent.id).all()
+    events = (
+        db.query(ClubEvent)
+        .filter(ClubEvent.club_id == club_id)
+        .order_by(ClubEvent.id)
+        .all()
+    )
     assert [e.event_type for e in events] == (
         ["created"]
         + ["requirement_submitted"] * 4
@@ -83,7 +104,9 @@ def test_full_flow_with_rejected_document_and_changes_loop(client, db):
     admin = auth(make_user(db, UserRole.admin))
 
     club_id = ok(
-        client.post("/clubs", json={"name": "Film", "description": "Watch films"}, headers=lead),
+        client.post(
+            "/clubs", json={"name": "Film", "description": "Watch films"}, headers=lead
+        ),
         201,
     )["id"]
     for requirement_type in DOCUMENTS:
@@ -99,7 +122,12 @@ def test_full_flow_with_rejected_document_and_changes_loop(client, db):
 
     # Round 1: budget is rejected, everything else approved, changes requested.
     for requirement_type in ("constitution", "exec_list", "advisor_form") + CHECKLIST:
-        ok(client.post(f"/clubs/{club_id}/requirements/{requirement_type}/approve", headers=admin))
+        ok(
+            client.post(
+                f"/clubs/{club_id}/requirements/{requirement_type}/approve",
+                headers=admin,
+            )
+        )
     ok(
         client.post(
             f"/clubs/{club_id}/requirements/budget/reject",
@@ -109,7 +137,9 @@ def test_full_flow_with_rejected_document_and_changes_loop(client, db):
     )
     ok(
         client.post(
-            f"/clubs/{club_id}/request-changes", json={"note": "Fix the budget"}, headers=admin
+            f"/clubs/{club_id}/request-changes",
+            json={"note": "Fix the budget"},
+            headers=admin,
         )
     )
 
@@ -125,14 +155,25 @@ def test_full_flow_with_rejected_document_and_changes_loop(client, db):
             headers=lead,
         )
     )
-    assert ok(client.post(f"/clubs/{club_id}/resubmit", headers=lead))["status"] == "submitted"
+    assert (
+        ok(client.post(f"/clubs/{club_id}/resubmit", headers=lead))["status"]
+        == "submitted"
+    )
 
     # Round 2: only the new budget needs approving; earlier approvals carry over.
     ok(client.post(f"/clubs/{club_id}/start-review", headers=admin))
     ok(client.post(f"/clubs/{club_id}/requirements/budget/approve", headers=admin))
-    assert ok(client.post(f"/clubs/{club_id}/approve", headers=admin))["status"] == "approved"
+    assert (
+        ok(client.post(f"/clubs/{club_id}/approve", headers=admin))["status"]
+        == "approved"
+    )
 
-    events = db.query(ClubEvent).filter(ClubEvent.club_id == club_id).order_by(ClubEvent.id).all()
+    events = (
+        db.query(ClubEvent)
+        .filter(ClubEvent.club_id == club_id)
+        .order_by(ClubEvent.id)
+        .all()
+    )
 
     club_level = [e for e in events if e.requirement_id is None]
     assert [e.event_type for e in club_level] == [
@@ -148,9 +189,13 @@ def test_full_flow_with_rejected_document_and_changes_loop(client, db):
 
     # The budget's own story survives in history even though the requirement row
     # itself now only holds the final approved link.
-    budget_id = next(e.requirement_id for e in events if e.event_type == "requirement_rejected")
+    budget_id = next(
+        e.requirement_id for e in events if e.event_type == "requirement_rejected"
+    )
     budget = [
-        (e.event_type, e.link_url, e.note) for e in events if e.requirement_id == budget_id
+        (e.event_type, e.link_url, e.note)
+        for e in events
+        if e.requirement_id == budget_id
     ]
     assert budget == [
         ("requirement_submitted", "https://drive.example.com/budget", None),

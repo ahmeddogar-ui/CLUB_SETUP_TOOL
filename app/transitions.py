@@ -62,10 +62,12 @@ def submission_blockers(club: Clubs, requirements: list[Requirement]) -> list[st
     return missing
 
 
-def _check_guards(db: Session, club: Clubs, to_status: ClubStatus, note: str | None) -> None:
+def _check_guards(
+    db: Session, club: Clubs, to_status: ClubStatus, note: str | None
+) -> None:
     key = (club.status, to_status)
 
-    requirements = (db.query(Requirement).filter(Requirement.club_id == club.id).all())
+    requirements = db.query(Requirement).filter(Requirement.club_id == club.id).all()
 
     if key in (
         (ClubStatus.drafting, ClubStatus.submitted),
@@ -77,7 +79,6 @@ def _check_guards(db: Session, club: Clubs, to_status: ClubStatus, note: str | N
             raise TransitionBlocked(f"missing: {', '.join(missing)}")
 
     elif key == (ClubStatus.under_review, ClubStatus.approved):
-
         not_approved = [
             requirement.requirement_type.value
             for requirement in requirements
@@ -104,7 +105,7 @@ def attempt_transition(
     actor: User,
     note: str | None = None,
 ) -> Clubs:
-    
+
     key = (club.status, to_status)
 
     if key not in ALLOWED:

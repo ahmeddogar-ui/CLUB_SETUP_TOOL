@@ -17,7 +17,9 @@ if not TEST_DATABASE_URL:
 
 # Refuse to run against the dev database. Read the dev URL the same way the app
 # does (env var first, then .env), and do it before DATABASE_URL is overwritten below.
-_dev_url = os.environ.get("DATABASE_URL") or dotenv_values(ROOT / ".env").get("DATABASE_URL")
+_dev_url = os.environ.get("DATABASE_URL") or dotenv_values(ROOT / ".env").get(
+    "DATABASE_URL"
+)
 _test_url = make_url(TEST_DATABASE_URL)
 if _dev_url:
     _dev = make_url(_dev_url)
@@ -154,7 +156,9 @@ def requirements_for(db: Session, club_id: int) -> dict[str, Requirement]:
 def provide_all_documents(db: Session, club_id: int) -> None:
     for requirement in requirements_for(db, club_id).values():
         if requirement.kind == RequirementKind.document:
-            requirement.link_url = f"https://example.com/{requirement.requirement_type.value}"
+            requirement.link_url = (
+                f"https://example.com/{requirement.requirement_type.value}"
+            )
             requirement.status = RequirementStatus.submitted
     db.commit()
 

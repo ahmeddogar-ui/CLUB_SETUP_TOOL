@@ -16,7 +16,9 @@ from tests.conftest import auth
 
 
 def register(client, name="Ada", email="ada@example.com", password="hunter2"):
-    return client.post("/auth/register", json={"name": name, "email": email, "password": password})
+    return client.post(
+        "/auth/register", json={"name": name, "email": email, "password": password}
+    )
 
 
 def login(client, email, password):
@@ -33,7 +35,9 @@ def expired_token(user_id: int) -> str:
 
 
 def test_register_missing_field_is_422(client):
-    response = client.post("/auth/register", json={"name": "Ada", "email": "ada@example.com"})
+    response = client.post(
+        "/auth/register", json={"name": "Ada", "email": "ada@example.com"}
+    )
     assert response.status_code == 422
 
 
@@ -117,7 +121,9 @@ def test_register_same_email_in_different_case_is_409(client, db):
 
 def test_database_rejects_a_mixed_case_email(db):
     # Belt and braces: the check constraint catches any path that skips normalize_email.
-    db.add(User(name="Raw", email="Raw@example.com", password_hash="x", role="club_lead"))
+    db.add(
+        User(name="Raw", email="Raw@example.com", password_hash="x", role="club_lead")
+    )
     with pytest.raises(IntegrityError):
         db.flush()
     db.rollback()
@@ -139,7 +145,9 @@ def test_missing_auth_header_is_401(client):
 
 
 def test_malformed_token_is_401(client):
-    response = client.get("/auth/me", headers={"Authorization": "Bearer not-a-real-jwt"})
+    response = client.get(
+        "/auth/me", headers={"Authorization": "Bearer not-a-real-jwt"}
+    )
     assert response.status_code == 401
 
 

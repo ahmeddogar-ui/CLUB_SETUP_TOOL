@@ -31,7 +31,10 @@ def test_requirements_lists_all_six_in_creation_order(client, club, lead):
 
 def test_events_newest_first_with_actor_name(client, db, club, lead):
     provide_all_documents(db, club["id"])
-    assert client.post(f"/clubs/{club['id']}/submit", headers=auth(lead)).status_code == 200
+    assert (
+        client.post(f"/clubs/{club['id']}/submit", headers=auth(lead)).status_code
+        == 200
+    )
 
     response = client.get(f"/clubs/{club['id']}/events", headers=auth(lead))
 
@@ -65,7 +68,10 @@ def test_events_include_requirement_link_and_id(client, club, lead):
 
 @pytest.mark.parametrize("path", READ_PATHS)
 def test_admin_can_read_any_club(client, club, admin, path):
-    assert client.get(f"/clubs/{club['id']}/{path}", headers=auth(admin)).status_code == 200
+    assert (
+        client.get(f"/clubs/{club['id']}/{path}", headers=auth(admin)).status_code
+        == 200
+    )
 
 
 @pytest.mark.parametrize("path", READ_PATHS)

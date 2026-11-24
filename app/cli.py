@@ -1,6 +1,6 @@
 """Operator commands, run against the database in DATABASE_URL.
 
-    uv run python -m app.cli make-admin someone@example.com
+uv run python -m app.cli make-admin someone@example.com
 """
 
 import argparse

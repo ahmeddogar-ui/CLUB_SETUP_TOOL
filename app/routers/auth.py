@@ -20,6 +20,7 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 REFRESH_COOKIE = "refresh_token"
 RefreshCookie = Annotated[str | None, Cookie(alias=REFRESH_COOKIE)]
 
+
 # Path "/" so the browser sends the cookie both to /auth/* directly and to
 # /api/auth/* through the frontend's proxy. httpOnly keeps it away from page
 # scripts; SameSite=strict keeps it off cross-site requests.
