@@ -276,3 +276,10 @@ def test_admin_submitting_a_lead_s_club_is_403(client, db, draft, admin):
     assert response.status_code == 403
     assert response.json()["detail"] == "admin may not perform this transition"
     assert event_count(db, draft["id"]) == 1  # only "created"
+
+
+def test_admin_resubmitting_a_lead_s_club_is_403(client, db, changes_requested, admin):
+    before = event_count(db, changes_requested["id"])
+    response = post(client, changes_requested["id"], "resubmit", admin)
+    assert response.status_code == 403
+    assert event_count(db, changes_requested["id"]) == before
