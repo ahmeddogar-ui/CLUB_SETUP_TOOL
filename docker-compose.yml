@@ -1,0 +1,32 @@
+# Local only: runs the production image against a throwaway Postgres.
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: club_setup_tool
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build: .
+    ports:
+      - "8000:8000"
+    # The app runs migrations on start, so it must wait until Postgres accepts connections.
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/club_setup_tool
+      SECRET_KEY: local-only-insecure-secret-key-do-not-use-in-production
+      # Plain HTTP locally, so the cookies must not be marked Secure.
+      SESSION_HTTPS_ONLY: "false"
+
+volumes:
+  db-data:

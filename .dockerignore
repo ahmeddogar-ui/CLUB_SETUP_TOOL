@@ -1,0 +1,23 @@
+# Secrets and VCS history never belong in the build context.
+.git
+.env
+.env.*
+.claude
+.superpowers
+
+# Rebuilt inside the image; host copies would be the wrong platform or stale.
+.venv
+**/node_modules
+frontend/dist
+
+# Caches, test and coverage output.
+**/__pycache__
+.pytest_cache
+.mypy_cache
+.ruff_cache
+.coverage
+htmlcov
+frontend/coverage
+frontend/test-results
+frontend/playwright-report
+tests

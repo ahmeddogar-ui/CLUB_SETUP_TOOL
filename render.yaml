@@ -1,0 +1,16 @@
+# Render Blueprint: one Docker web service. The database is on Neon, not Render.
+services:
+  - type: web
+    name: club-setup-tool
+    runtime: docker
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      # Paste the Neon connection string in the Render dashboard.
+      - key: DATABASE_URL
+        sync: false
+      - key: SECRET_KEY
+        generateValue: true
+      # Render serves over HTTPS, so the refresh cookie must be Secure.
+      - key: SESSION_HTTPS_ONLY
+        value: "true"
