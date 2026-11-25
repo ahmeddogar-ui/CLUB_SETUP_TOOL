@@ -52,7 +52,7 @@ def register_user(db: Session, name: str, email: str, password: str) -> User:
 
 
 def verify_credentials(db: Session, email: str, password: str) -> User:
-    """Returns the user, or raises 401. Shared by the JWT API and the web session."""
+    """Returns the user, or raises 401."""
     user = db.query(User).filter(User.email == normalize_email(email)).first()
     if not user or not verify_password(password, user.password_hash):
         raise HTTPException(

@@ -9,8 +9,8 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS: int = 14
-    # Set True in production (HTTPS) so the session and refresh cookies are never
-    # sent over plain HTTP.
+    # Set True in production (HTTPS) so the refresh cookie is never sent over
+    # plain HTTP.
     SESSION_HTTPS_ONLY: bool = False
 
 
