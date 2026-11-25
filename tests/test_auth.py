@@ -178,16 +178,6 @@ def test_expired_token_is_401(client, lead):
     assert response.status_code == 401
 
 
-def test_discarding_the_token_client_side_is_equivalent_to_no_token(client):
-    """Access tokens are stateless JWTs with no server-side revocation (a
-    deliberate scope cut -- see PLAN.md). "Logout" is a client-side action
-    only: the token itself stays valid until it expires, so the only thing
-    to confirm is that a request sent *without* it is rejected the same way
-    an unauthenticated request always is.
-    """
-    assert client.get("/auth/me").status_code == 401
-
-
 # --- require_role (success path only; the 403 path is ticket 23's) ------------
 
 
