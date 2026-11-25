@@ -1,15 +1,21 @@
-from fastapi import FastAPI, Request
+from fastapi import APIRouter, FastAPI, Request
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
 from sqlalchemy.exc import OperationalError
 
+from app.core.config import settings
 from app.database import DbSession
 from app.exceptions import Conflict, DomainError, Forbidden, NotFound, Unauthorized
+from app.frontend import FRONTEND_DIST, mount_frontend
 from app.routers.auth import router as auth_router
 from app.routers.clubs import router as clubs_router
 from app.routers.requirements import router as requirements_router
 
-app = FastAPI()
+app = FastAPI(
+    docs_url="/api/docs" if settings.ENABLE_API_DOCS else None,
+    openapi_url="/api/openapi.json" if settings.ENABLE_API_DOCS else None,
+    redoc_url=None,
+)
 
 STATUS_FOR_ERROR: dict[type[DomainError], int] = {
     NotFound: 404,
@@ -43,6 +49,14 @@ def db_health(db: DbSession) -> JSONResponse:
     return JSONResponse(content={"status": "ok"})
 
 
-app.include_router(clubs_router)
-app.include_router(auth_router)
-app.include_router(requirements_router)
+# Everything the React app calls lives under /api, so the same paths work in
+# development (through Vite's proxy) and in production (same origin).
+api = APIRouter(prefix="/api")
+api.include_router(auth_router)
+api.include_router(clubs_router)
+api.include_router(requirements_router)
+app.include_router(api)
+
+# Last: it answers every path the routes above don't.
+if FRONTEND_DIST.is_dir():
+    mount_frontend(app, FRONTEND_DIST)

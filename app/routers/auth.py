@@ -25,9 +25,8 @@ REFRESH_COOKIE = "refresh_token"
 RefreshCookie = Annotated[str | None, Cookie(alias=REFRESH_COOKIE)]
 
 
-# Path "/" so the browser sends the cookie both to /auth/* directly and to
-# /api/auth/* through the frontend's proxy. httpOnly keeps it away from page
-# scripts; SameSite=strict keeps it off cross-site requests.
+# httpOnly keeps the refresh token away from page scripts; SameSite=strict keeps
+# it off cross-site requests. Secure (HTTPS only) is on in production.
 def _set_refresh_cookie(response: Response, refresh_token: str) -> None:
     response.set_cookie(
         REFRESH_COOKIE,

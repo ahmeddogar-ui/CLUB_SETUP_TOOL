@@ -13,7 +13,7 @@ def set_link(
     client, club_id, requirement_type, user, link="https://docs.example.com/file"
 ):
     return client.put(
-        f"/clubs/{club_id}/requirements/{requirement_type}/link",
+        f"/api/clubs/{club_id}/requirements/{requirement_type}/link",
         json={"link_url": link},
         headers=auth(user),
     )
@@ -21,7 +21,7 @@ def set_link(
 
 def review(client, club_id, requirement_type, action, user, **kwargs):
     return client.post(
-        f"/clubs/{club_id}/requirements/{requirement_type}/{action}",
+        f"/api/clubs/{club_id}/requirements/{requirement_type}/{action}",
         headers=auth(user),
         **kwargs,
     )
@@ -36,12 +36,12 @@ def draft(client, lead):
 def under_review(client, db, draft, lead, admin):
     provide_all_documents(db, draft["id"])
     assert (
-        client.post(f"/clubs/{draft['id']}/submit", headers=auth(lead)).status_code
+        client.post(f"/api/clubs/{draft['id']}/submit", headers=auth(lead)).status_code
         == 200
     )
     assert (
         client.post(
-            f"/clubs/{draft['id']}/start-review", headers=auth(admin)
+            f"/api/clubs/{draft['id']}/start-review", headers=auth(admin)
         ).status_code
         == 200
     )
@@ -308,7 +308,7 @@ def test_rejection_reason_survives_new_link(client, db, under_review, lead, admi
         json={"note": "Line items don't sum"},
     )
     client.post(
-        f"/clubs/{club_id}/request-changes",
+        f"/api/clubs/{club_id}/request-changes",
         json={"note": "Fix it"},
         headers=auth(admin),
     )

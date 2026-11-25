@@ -38,7 +38,7 @@ def test_club_lead_stopped_before_route_body(
     client, lead, body_must_not_run, action, body
 ):
     # Club id doesn't even need to exist: the role check comes before any lookup.
-    response = client.post(f"/clubs/1/{action}", json=body, headers=auth(lead))
+    response = client.post(f"/api/clubs/1/{action}", json=body, headers=auth(lead))
     assert response.status_code == 403
 
 
@@ -46,7 +46,7 @@ def test_club_lead_stopped_before_route_body(
 def test_unauthenticated_stopped_before_route_body(
     client, body_must_not_run, action, body
 ):
-    assert client.post(f"/clubs/1/{action}", json=body).status_code == 401
+    assert client.post(f"/api/clubs/1/{action}", json=body).status_code == 401
 
 
 def test_resubmit_not_admin_gated(client, db, lead, admin):
@@ -59,7 +59,7 @@ def test_resubmit_not_admin_gated(client, db, lead, admin):
         ("resubmit", lead, None),
     ]:
         response = client.post(
-            f"/clubs/{club['id']}/{action}", json=body, headers=auth(user)
+            f"/api/clubs/{club['id']}/{action}", json=body, headers=auth(user)
         )
         assert response.status_code == 200, (action, response.text)
     assert response.json()["status"] == "submitted"

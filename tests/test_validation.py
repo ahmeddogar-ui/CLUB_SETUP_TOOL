@@ -20,7 +20,7 @@ URL_PREFIX = "https://docs.example.com/"
 
 def register(client, name="Ada", password="a-good-password"):
     return client.post(
-        "/auth/register",
+        "/api/auth/register",
         json={"name": name, "email": "ada@example.com", "password": password},
     )
 
@@ -72,7 +72,7 @@ def test_club_fields_over_the_maximum_are_422_on_create(
     client, lead, field, max_length
 ):
     body = {"name": "Chess", "description": "We play", field: "a" * (max_length + 1)}
-    response = client.post("/clubs", json=body, headers=auth(lead))
+    response = client.post("/api/clubs", json=body, headers=auth(lead))
     assert response.status_code == 422
 
 
@@ -84,7 +84,7 @@ def test_club_fields_at_the_maximum_are_accepted_on_create(
     client, lead, field, max_length
 ):
     body = {"name": "Chess", "description": "We play", field: "a" * max_length}
-    response = client.post("/clubs", json=body, headers=auth(lead))
+    response = client.post("/api/clubs", json=body, headers=auth(lead))
     assert response.status_code == 201
 
 
@@ -97,7 +97,9 @@ def test_club_fields_over_the_maximum_are_422_on_update(
 ):
     club = make_club(db, lead)
     response = client.patch(
-        f"/clubs/{club.id}", json={field: "a" * (max_length + 1)}, headers=auth(lead)
+        f"/api/clubs/{club.id}",
+        json={field: "a" * (max_length + 1)},
+        headers=auth(lead),
     )
     assert response.status_code == 422
 
@@ -122,7 +124,7 @@ def test_note_over_the_maximum_is_422(client, db, lead, admin, path):
         requirement_status=RequirementStatus.submitted,
     )
     response = client.post(
-        f"/clubs/{club.id}/{path}",
+        f"/api/clubs/{club.id}/{path}",
         json={"note": "a" * (NOTE_MAX_LENGTH + 1)},
         headers=auth(admin),
     )
@@ -137,7 +139,7 @@ def test_note_at_the_maximum_is_accepted(client, db, lead, admin):
         requirement_status=RequirementStatus.submitted,
     )
     response = client.post(
-        f"/clubs/{club.id}/reject",
+        f"/api/clubs/{club.id}/reject",
         json={"note": "a" * NOTE_MAX_LENGTH},
         headers=auth(admin),
     )
@@ -150,7 +152,7 @@ def test_note_at_the_maximum_is_accepted(client, db, lead, admin):
 def test_link_over_the_maximum_is_422(client, db, lead):
     club = make_club(db, lead)
     response = client.put(
-        f"/clubs/{club.id}/requirements/budget/link",
+        f"/api/clubs/{club.id}/requirements/budget/link",
         json={"link_url": url_of_length(URL_MAX_LENGTH + 1)},
         headers=auth(lead),
     )
@@ -160,7 +162,7 @@ def test_link_over_the_maximum_is_422(client, db, lead):
 def test_link_at_the_maximum_is_accepted(client, db, lead):
     club = make_club(db, lead)
     response = client.put(
-        f"/clubs/{club.id}/requirements/budget/link",
+        f"/api/clubs/{club.id}/requirements/budget/link",
         json={"link_url": url_of_length(URL_MAX_LENGTH)},
         headers=auth(lead),
     )
@@ -174,7 +176,7 @@ def test_password_at_the_maximum_is_accepted(client):
 
 def test_login_password_longer_than_the_maximum_is_422(client):
     response = client.post(
-        "/auth/login",
+        "/api/auth/login",
         data={
             "username": "ada@example.com",
             "password": "a" * (PASSWORD_MAX_LENGTH + 1),
@@ -186,7 +188,7 @@ def test_login_password_longer_than_the_maximum_is_422(client):
 def test_club_fields_at_the_maximum_are_accepted_on_update(client, db, lead):
     club = make_club(db, lead)
     response = client.patch(
-        f"/clubs/{club.id}",
+        f"/api/clubs/{club.id}",
         json={
             "name": "a" * CLUB_NAME_MAX_LENGTH,
             "description": "a" * DESCRIPTION_MAX_LENGTH,
@@ -204,7 +206,7 @@ def test_note_padded_with_spaces_is_measured_after_trimming(client, db, lead, ad
         requirement_status=RequirementStatus.submitted,
     )
     response = client.post(
-        f"/clubs/{club.id}/reject",
+        f"/api/clubs/{club.id}/reject",
         json={"note": "  " + "a" * NOTE_MAX_LENGTH + "  "},
         headers=auth(admin),
     )

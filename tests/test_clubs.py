@@ -23,14 +23,14 @@ NOT_EDITABLE = [
 def test_create_missing_field_is_422(client, lead, missing):
     body = {"name": "Chess Club", "description": "We play chess"}
     del body[missing]
-    assert client.post("/clubs", json=body, headers=auth(lead)).status_code == 422
+    assert client.post("/api/clubs", json=body, headers=auth(lead)).status_code == 422
 
 
 @pytest.mark.parametrize("field", ["name", "description"])
 @pytest.mark.parametrize("blank", ["", "   "])
 def test_create_blank_field_is_422(client, lead, field, blank):
     body = {"name": "Chess Club", "description": "We play chess", field: blank}
-    assert client.post("/clubs", json=body, headers=auth(lead)).status_code == 422
+    assert client.post("/api/clubs", json=body, headers=auth(lead)).status_code == 422
 
 
 def test_create_trims_name_and_description(client, lead):
@@ -41,14 +41,16 @@ def test_create_trims_name_and_description(client, lead):
 
 
 def test_create_requires_authentication(client):
-    response = client.post("/clubs", json={"name": "Chess", "description": "Chess"})
+    response = client.post("/api/clubs", json={"name": "Chess", "description": "Chess"})
     assert response.status_code == 401
 
 
 def test_admin_cannot_create_a_club(client, db, admin):
     # Only club leads can submit, so an admin's club could never leave drafting.
     response = client.post(
-        "/clubs", json={"name": "Admin Club", "description": "x"}, headers=auth(admin)
+        "/api/clubs",
+        json={"name": "Admin Club", "description": "x"},
+        headers=auth(admin),
     )
 
     assert response.status_code == 403
@@ -100,7 +102,7 @@ def test_owner_and_admin_can_read_detail(client, request, lead, viewer):
     club = create_club(client, lead)
     user = request.getfixturevalue(viewer)
 
-    response = client.get(f"/clubs/{club['id']}", headers=auth(user))
+    response = client.get(f"/api/clubs/{club['id']}", headers=auth(user))
 
     assert response.status_code == 200
     assert response.json() == club
@@ -109,7 +111,7 @@ def test_owner_and_admin_can_read_detail(client, request, lead, viewer):
 def test_other_lead_gets_403_without_any_club_data(client, lead, other_lead):
     club = create_club(client, lead, name="Secret Society", description="Hidden agenda")
 
-    response = client.get(f"/clubs/{club['id']}", headers=auth(other_lead))
+    response = client.get(f"/api/clubs/{club['id']}", headers=auth(other_lead))
 
     assert response.status_code == 403
     assert "Secret Society" not in response.text
@@ -118,14 +120,14 @@ def test_other_lead_gets_403_without_any_club_data(client, lead, other_lead):
 
 def test_missing_club_is_404_even_for_a_non_owner(client, lead):
     # Existence is checked before ownership, so a 404 never hints at someone else's id.
-    assert client.get("/clubs/999999", headers=auth(lead)).status_code == 404
+    assert client.get("/api/clubs/999999", headers=auth(lead)).status_code == 404
 
 
 # --- update ---------------------------------------------------------------------
 
 
 def patch(client, club_id, user, body):
-    return client.patch(f"/clubs/{club_id}", json=body, headers=auth(user))
+    return client.patch(f"/api/clubs/{club_id}", json=body, headers=auth(user))
 
 
 @pytest.mark.parametrize(
@@ -203,7 +205,9 @@ def test_update_missing_club_is_404(client, lead):
 
 def test_update_requires_authentication(client, db, lead):
     club = make_club(db, lead)
-    assert client.patch(f"/clubs/{club.id}", json={"name": "Anon"}).status_code == 401
+    assert (
+        client.patch(f"/api/clubs/{club.id}", json={"name": "Anon"}).status_code == 401
+    )
 
 
 def test_deleting_a_club_with_history_is_refused_by_the_foreign_key(db, lead):

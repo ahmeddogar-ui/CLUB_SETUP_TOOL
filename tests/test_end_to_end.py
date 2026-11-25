@@ -13,11 +13,12 @@ CHECKLIST = ("bank_account_setup", "exec_onboarding")
 
 def register_and_login(client, email):
     response = client.post(
-        "/auth/register", json={"name": "Lead", "email": email, "password": "pw123456"}
+        "/api/auth/register",
+        json={"name": "Lead", "email": email, "password": "pw123456"},
     )
     assert response.status_code == 201, response.text
     response = client.post(
-        "/auth/login", data={"username": email, "password": "pw123456"}
+        "/api/auth/login", data={"username": email, "password": "pw123456"}
     )
     assert response.status_code == 200, response.text
     return {"Authorization": f"Bearer {response.json()['access_token']}"}
@@ -34,7 +35,7 @@ def test_full_flow_to_approval(client, db):
 
     club = ok(
         client.post(
-            "/clubs",
+            "/api/clubs",
             json={"name": "Robotics", "description": "Build robots"},
             headers=lead,
         ),
@@ -43,28 +44,28 @@ def test_full_flow_to_approval(client, db):
     club_id = club["id"]
 
     # Submitting before any documents are attached is blocked.
-    assert client.post(f"/clubs/{club_id}/submit", headers=lead).status_code == 409
+    assert client.post(f"/api/clubs/{club_id}/submit", headers=lead).status_code == 409
 
     for requirement_type in DOCUMENTS:
         ok(
             client.put(
-                f"/clubs/{club_id}/requirements/{requirement_type}/link",
+                f"/api/clubs/{club_id}/requirements/{requirement_type}/link",
                 json={"link_url": f"https://drive.example.com/{requirement_type}"},
                 headers=lead,
             )
         )
 
     assert (
-        ok(client.post(f"/clubs/{club_id}/submit", headers=lead))["status"]
+        ok(client.post(f"/api/clubs/{club_id}/submit", headers=lead))["status"]
         == "submitted"
     )
     assert (
-        ok(client.post(f"/clubs/{club_id}/start-review", headers=admin))["status"]
+        ok(client.post(f"/api/clubs/{club_id}/start-review", headers=admin))["status"]
         == "under_review"
     )
 
     # Approve is blocked until every requirement has been individually approved.
-    blocked = client.post(f"/clubs/{club_id}/approve", headers=admin)
+    blocked = client.post(f"/api/clubs/{club_id}/approve", headers=admin)
     assert blocked.status_code == 409
     for requirement_type in DOCUMENTS + CHECKLIST:
         assert requirement_type in blocked.json()["detail"]
@@ -72,17 +73,17 @@ def test_full_flow_to_approval(client, db):
     for requirement_type in DOCUMENTS + CHECKLIST:
         body = ok(
             client.post(
-                f"/clubs/{club_id}/requirements/{requirement_type}/approve",
+                f"/api/clubs/{club_id}/requirements/{requirement_type}/approve",
                 headers=admin,
             )
         )
         assert body["status"] == "approved"
 
     assert (
-        ok(client.post(f"/clubs/{club_id}/approve", headers=admin))["status"]
+        ok(client.post(f"/api/clubs/{club_id}/approve", headers=admin))["status"]
         == "approved"
     )
-    assert ok(client.get(f"/clubs/{club_id}", headers=lead))["status"] == "approved"
+    assert ok(client.get(f"/api/clubs/{club_id}", headers=lead))["status"] == "approved"
 
     events = (
         db.query(ClubEvent)
@@ -105,66 +106,68 @@ def test_full_flow_with_rejected_document_and_changes_loop(client, db):
 
     club_id = ok(
         client.post(
-            "/clubs", json={"name": "Film", "description": "Watch films"}, headers=lead
+            "/api/clubs",
+            json={"name": "Film", "description": "Watch films"},
+            headers=lead,
         ),
         201,
     )["id"]
     for requirement_type in DOCUMENTS:
         ok(
             client.put(
-                f"/clubs/{club_id}/requirements/{requirement_type}/link",
+                f"/api/clubs/{club_id}/requirements/{requirement_type}/link",
                 json={"link_url": f"https://drive.example.com/{requirement_type}"},
                 headers=lead,
             )
         )
-    ok(client.post(f"/clubs/{club_id}/submit", headers=lead))
-    ok(client.post(f"/clubs/{club_id}/start-review", headers=admin))
+    ok(client.post(f"/api/clubs/{club_id}/submit", headers=lead))
+    ok(client.post(f"/api/clubs/{club_id}/start-review", headers=admin))
 
     # Round 1: budget is rejected, everything else approved, changes requested.
     for requirement_type in ("constitution", "exec_list", "advisor_form") + CHECKLIST:
         ok(
             client.post(
-                f"/clubs/{club_id}/requirements/{requirement_type}/approve",
+                f"/api/clubs/{club_id}/requirements/{requirement_type}/approve",
                 headers=admin,
             )
         )
     ok(
         client.post(
-            f"/clubs/{club_id}/requirements/budget/reject",
+            f"/api/clubs/{club_id}/requirements/budget/reject",
             json={"note": "Totals don't add up"},
             headers=admin,
         )
     )
     ok(
         client.post(
-            f"/clubs/{club_id}/request-changes",
+            f"/api/clubs/{club_id}/request-changes",
             json={"note": "Fix the budget"},
             headers=admin,
         )
     )
 
     # Resubmitting without replacing the rejected budget is blocked and says why.
-    blocked = client.post(f"/clubs/{club_id}/resubmit", headers=lead)
+    blocked = client.post(f"/api/clubs/{club_id}/resubmit", headers=lead)
     assert blocked.status_code == 409
     assert "budget" in blocked.json()["detail"]
 
     ok(
         client.put(
-            f"/clubs/{club_id}/requirements/budget/link",
+            f"/api/clubs/{club_id}/requirements/budget/link",
             json={"link_url": "https://drive.example.com/budget-v2"},
             headers=lead,
         )
     )
     assert (
-        ok(client.post(f"/clubs/{club_id}/resubmit", headers=lead))["status"]
+        ok(client.post(f"/api/clubs/{club_id}/resubmit", headers=lead))["status"]
         == "submitted"
     )
 
     # Round 2: only the new budget needs approving; earlier approvals carry over.
-    ok(client.post(f"/clubs/{club_id}/start-review", headers=admin))
-    ok(client.post(f"/clubs/{club_id}/requirements/budget/approve", headers=admin))
+    ok(client.post(f"/api/clubs/{club_id}/start-review", headers=admin))
+    ok(client.post(f"/api/clubs/{club_id}/requirements/budget/approve", headers=admin))
     assert (
-        ok(client.post(f"/clubs/{club_id}/approve", headers=admin))["status"]
+        ok(client.post(f"/api/clubs/{club_id}/approve", headers=admin))["status"]
         == "approved"
     )
 

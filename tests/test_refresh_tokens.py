@@ -11,7 +11,7 @@ from app.routers.auth import REFRESH_COOKIE
 
 def login(client, user):
     response = client.post(
-        "/auth/login", data={"username": user.email, "password": "password"}
+        "/api/auth/login", data={"username": user.email, "password": "password"}
     )
     assert response.status_code == 200, response.text
     return response
@@ -38,7 +38,7 @@ def store_token(db, user, **overrides):
 def refresh(client, cookie=None):
     if cookie is not None:
         client.cookies.set(REFRESH_COOKIE, cookie)
-    return client.post("/auth/refresh")
+    return client.post("/api/auth/refresh")
 
 
 def test_login_sets_refresh_token_as_httponly_cookie_not_in_body(client, db, lead):
@@ -63,7 +63,7 @@ def test_valid_cookie_returns_a_working_access_token(client, lead):
 
     assert response.status_code == 200
     token = response.json()["access_token"]
-    me = client.get("/auth/me", headers={"Authorization": f"Bearer {token}"})
+    me = client.get("/api/auth/me", headers={"Authorization": f"Bearer {token}"})
     assert me.json()["id"] == lead.id
 
 
@@ -90,7 +90,7 @@ def test_no_cookie_is_401(client):
 def test_logout_revokes_the_token_and_clears_the_cookie(client, db, lead):
     cookie = login(client, lead).cookies[REFRESH_COOKIE]
 
-    response = client.post("/auth/logout")
+    response = client.post("/api/auth/logout")
 
     assert response.status_code == 204
     assert REFRESH_COOKIE not in client.cookies
@@ -104,10 +104,10 @@ def test_logout_only_revokes_that_session(client, db, lead):
     other_session = store_token(db, lead)
     login(client, lead)
 
-    client.post("/auth/logout")
+    client.post("/api/auth/logout")
 
     assert refresh(client, other_session).status_code == 200
 
 
 def test_logout_without_a_cookie_is_harmless(client):
-    assert client.post("/auth/logout").status_code == 204
+    assert client.post("/api/auth/logout").status_code == 204

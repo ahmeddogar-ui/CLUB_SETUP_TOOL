@@ -18,7 +18,7 @@ def set_state(db, club_id, status, days_ago):
 
 
 def list_clubs(client, user, params=None):
-    response = client.get("/clubs", params=params, headers=auth(user))
+    response = client.get("/api/clubs", params=params, headers=auth(user))
     assert response.status_code == 200, response.text
     return response.json()
 
@@ -72,7 +72,7 @@ def test_response_uses_club_out_shape(client, lead, clubs):
 
 
 def test_requires_auth(client):
-    assert client.get("/clubs").status_code == 401
+    assert client.get("/api/clubs").status_code == 401
 
 
 # --- the review queue -------------------------------------------------------
@@ -160,5 +160,5 @@ def test_club_lead_filter_still_scoped_to_own_clubs(client, lead, other_lead, cl
     ],
 )
 def test_invalid_values_rejected_with_422(client, admin, clubs, params):
-    response = client.get("/clubs", params=params, headers=auth(admin))
+    response = client.get("/api/clubs", params=params, headers=auth(admin))
     assert response.status_code == 422

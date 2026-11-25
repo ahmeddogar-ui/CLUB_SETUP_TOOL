@@ -155,7 +155,7 @@ class ClubEvent(Base):
 
 class RefreshToken(Base):
     """Long-lived login, kept in an httpOnly cookie and exchanged at
-    /auth/refresh for short-lived access tokens. Only a hash is stored, so a
+    /api/auth/refresh for short-lived access tokens. Only a hash is stored, so a
     database leak doesn't hand out working tokens."""
 
     __tablename__ = "refresh_tokens"

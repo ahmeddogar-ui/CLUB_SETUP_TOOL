@@ -13,7 +13,7 @@ def club(client, lead):
 
 
 def test_requirements_lists_all_six_in_creation_order(client, club, lead):
-    response = client.get(f"/clubs/{club['id']}/requirements", headers=auth(lead))
+    response = client.get(f"/api/clubs/{club['id']}/requirements", headers=auth(lead))
 
     assert response.status_code == 200
     body = response.json()
@@ -32,11 +32,11 @@ def test_requirements_lists_all_six_in_creation_order(client, club, lead):
 def test_events_newest_first_with_actor_name(client, db, club, lead):
     provide_all_documents(db, club["id"])
     assert (
-        client.post(f"/clubs/{club['id']}/submit", headers=auth(lead)).status_code
+        client.post(f"/api/clubs/{club['id']}/submit", headers=auth(lead)).status_code
         == 200
     )
 
-    response = client.get(f"/clubs/{club['id']}/events", headers=auth(lead))
+    response = client.get(f"/api/clubs/{club['id']}/events", headers=auth(lead))
 
     assert response.status_code == 200
     events = response.json()
@@ -50,16 +50,16 @@ def test_events_newest_first_with_actor_name(client, db, club, lead):
 
 def test_events_include_requirement_link_and_id(client, club, lead):
     client.put(
-        f"/clubs/{club['id']}/requirements/budget/link",
+        f"/api/clubs/{club['id']}/requirements/budget/link",
         json={"link_url": "https://docs.example.com/budget"},
         headers=auth(lead),
     )
     requirements = client.get(
-        f"/clubs/{club['id']}/requirements", headers=auth(lead)
+        f"/api/clubs/{club['id']}/requirements", headers=auth(lead)
     ).json()
     budget_id = next(r["id"] for r in requirements if r["requirement_type"] == "budget")
 
-    latest = client.get(f"/clubs/{club['id']}/events", headers=auth(lead)).json()[0]
+    latest = client.get(f"/api/clubs/{club['id']}/events", headers=auth(lead)).json()[0]
 
     assert latest["event_type"] == "requirement_submitted"
     assert latest["requirement_id"] == budget_id
@@ -69,22 +69,24 @@ def test_events_include_requirement_link_and_id(client, club, lead):
 @pytest.mark.parametrize("path", READ_PATHS)
 def test_admin_can_read_any_club(client, club, admin, path):
     assert (
-        client.get(f"/clubs/{club['id']}/{path}", headers=auth(admin)).status_code
+        client.get(f"/api/clubs/{club['id']}/{path}", headers=auth(admin)).status_code
         == 200
     )
 
 
 @pytest.mark.parametrize("path", READ_PATHS)
 def test_other_lead_is_forbidden(client, club, other_lead, path):
-    response = client.get(f"/clubs/{club['id']}/{path}", headers=auth(other_lead))
+    response = client.get(f"/api/clubs/{club['id']}/{path}", headers=auth(other_lead))
     assert response.status_code == 403
 
 
 @pytest.mark.parametrize("path", READ_PATHS)
 def test_missing_club_is_404(client, lead, path):
-    assert client.get(f"/clubs/999999/{path}", headers=auth(lead)).status_code == 404
+    assert (
+        client.get(f"/api/clubs/999999/{path}", headers=auth(lead)).status_code == 404
+    )
 
 
 @pytest.mark.parametrize("path", READ_PATHS)
 def test_requires_authentication(client, club, path):
-    assert client.get(f"/clubs/{club['id']}/{path}").status_code == 401
+    assert client.get(f"/api/clubs/{club['id']}/{path}").status_code == 401

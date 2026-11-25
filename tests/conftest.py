@@ -142,7 +142,9 @@ def admin(db):
 
 def create_club(client, user: User, name="Chess Club", description="We play chess"):
     response = client.post(
-        "/clubs", json={"name": name, "description": description}, headers=auth(user)
+        "/api/clubs",
+        json={"name": name, "description": description},
+        headers=auth(user),
     )
     assert response.status_code == 201, response.text
     return response.json()

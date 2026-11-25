@@ -17,13 +17,15 @@ from tests.conftest import auth
 
 def register(client, name="Ada", email="ada@example.com", password="hunter2-hunter2"):
     return client.post(
-        "/auth/register", json={"name": name, "email": email, "password": password}
+        "/api/auth/register", json={"name": name, "email": email, "password": password}
     )
 
 
 def login(client, email, password):
     # /auth/login is OAuth2PasswordRequestForm -- form-encoded, not JSON.
-    return client.post("/auth/login", data={"username": email, "password": password})
+    return client.post(
+        "/api/auth/login", data={"username": email, "password": password}
+    )
 
 
 def expired_token(user_id: int) -> str:
@@ -36,7 +38,7 @@ def expired_token(user_id: int) -> str:
 
 def test_register_missing_field_is_422(client):
     response = client.post(
-        "/auth/register", json={"name": "Ada", "email": "ada@example.com"}
+        "/api/auth/register", json={"name": "Ada", "email": "ada@example.com"}
     )
     assert response.status_code == 422
 
@@ -134,7 +136,7 @@ def test_database_rejects_a_mixed_case_email(db):
 
 
 def test_valid_token_resolves_the_right_user(client, lead):
-    response = client.get("/auth/me", headers=auth(lead))
+    response = client.get("/api/auth/me", headers=auth(lead))
 
     assert response.status_code == 200
     assert response.json()["id"] == lead.id
@@ -142,12 +144,12 @@ def test_valid_token_resolves_the_right_user(client, lead):
 
 
 def test_missing_auth_header_is_401(client):
-    assert client.get("/auth/me").status_code == 401
+    assert client.get("/api/auth/me").status_code == 401
 
 
 def test_malformed_token_is_401(client):
     response = client.get(
-        "/auth/me", headers={"Authorization": "Bearer not-a-real-jwt"}
+        "/api/auth/me", headers={"Authorization": "Bearer not-a-real-jwt"}
     )
     assert response.status_code == 401
 
@@ -160,20 +162,22 @@ def test_tampered_token_is_401(client, lead):
     flipped = "a" if signature[0] != "a" else "b"
     tampered = ".".join([header, payload, flipped + signature[1:]])
 
-    response = client.get("/auth/me", headers={"Authorization": f"Bearer {tampered}"})
+    response = client.get(
+        "/api/auth/me", headers={"Authorization": f"Bearer {tampered}"}
+    )
     assert response.status_code == 401
 
 
 def test_token_with_non_numeric_subject_is_401(client):
     payload = {"sub": "abc", "exp": datetime.now(UTC) + timedelta(minutes=5)}
     token = jwt.encode(payload, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
-    response = client.get("/auth/me", headers={"Authorization": f"Bearer {token}"})
+    response = client.get("/api/auth/me", headers={"Authorization": f"Bearer {token}"})
     assert response.status_code == 401
 
 
 def test_expired_token_is_401(client, lead):
     response = client.get(
-        "/auth/me", headers={"Authorization": f"Bearer {expired_token(lead.id)}"}
+        "/api/auth/me", headers={"Authorization": f"Bearer {expired_token(lead.id)}"}
     )
     assert response.status_code == 401
 
@@ -185,7 +189,7 @@ def test_admin_role_user_passes_require_role(client, admin, lead, db):
     from tests.conftest import make_club
 
     club = make_club(db, lead)
-    response = client.post(f"/clubs/{club.id}/start-review", headers=auth(admin))
+    response = client.post(f"/api/clubs/{club.id}/start-review", headers=auth(admin))
     # Not a legal transition from `drafting`, but a 409 proves require_role let it
     # through to the transition service -- a 403 here would mean the role check
     # itself rejected a genuine admin, which is the thing this test guards against.

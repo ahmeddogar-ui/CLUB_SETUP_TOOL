@@ -17,7 +17,7 @@ def event_count(db, club_id) -> int:
 
 
 def post(client, club_id, action, user, **kwargs):
-    return client.post(f"/clubs/{club_id}/{action}", headers=auth(user), **kwargs)
+    return client.post(f"/api/clubs/{club_id}/{action}", headers=auth(user), **kwargs)
 
 
 @pytest.fixture
@@ -92,7 +92,7 @@ def test_submit_missing_club_404(client, lead):
 
 
 def test_submit_requires_auth(client, draft):
-    assert client.post(f"/clubs/{draft['id']}/submit").status_code == 401
+    assert client.post(f"/api/clubs/{draft['id']}/submit").status_code == 401
 
 
 # --- start-review (ticket 20) ----------------------------------------------
