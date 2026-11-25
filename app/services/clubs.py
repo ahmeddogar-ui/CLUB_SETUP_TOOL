@@ -99,7 +99,7 @@ def list_clubs_for_user(
     return query.all()
 
 
-def get_club_or_404(db: Session, club_id: int) -> Clubs:
+def get_club(db: Session, club_id: int) -> Clubs:
     club = db.query(Clubs).filter(Clubs.id == club_id).first()
     if not club:
         raise NotFound("Club not found")
@@ -136,7 +136,7 @@ def ensure_owner(club: Clubs, user: User) -> None:
 
 def get_club_for_user(db: Session, club_id: int, user: User) -> Clubs:
     """Existence before ownership, so a missing club is a 404 for everyone."""
-    club = get_club_or_404(db, club_id)
+    club = get_club(db, club_id)
     ensure_owner_or_admin(club, user)
     return club
 

@@ -93,6 +93,7 @@ def test_login_wrong_password_is_401_generic(client):
 
     assert response.status_code == 401
     assert response.json()["detail"] == "Incorrect email or password"
+    assert response.headers["WWW-Authenticate"] == "Bearer"
 
 
 def test_login_nonexistent_email_is_same_generic_401(client):

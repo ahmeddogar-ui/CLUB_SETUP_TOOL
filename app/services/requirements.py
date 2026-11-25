@@ -14,7 +14,7 @@ from app.models import (
 from app.services.clubs import EDITABLE_STATUSES, ensure_owner, get_club_for_update
 
 
-def get_requirement_or_404(
+def get_requirement(
     db: Session, club_id: int, requirement_type: RequirementType
 ) -> Requirement:
     # Filter on both columns so a type can only ever resolve to this club's own row.
@@ -39,7 +39,7 @@ def _get_reviewable_requirement(
         raise Conflict(
             "Requirements can only be reviewed while the club is under_review"
         )
-    return club, get_requirement_or_404(db, club_id, requirement_type)
+    return club, get_requirement(db, club_id, requirement_type)
 
 
 def _record_requirement_event(
@@ -82,7 +82,7 @@ def set_requirement_link(
             "Cannot change documents on a club that has already been submitted"
         )
 
-    requirement = get_requirement_or_404(db, club_id, requirement_type)
+    requirement = get_requirement(db, club_id, requirement_type)
 
     if requirement.kind != RequirementKind.document:
         raise Conflict(f"{requirement_type.value} is a checklist item and has no link")
