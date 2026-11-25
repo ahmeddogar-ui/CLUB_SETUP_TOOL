@@ -1,6 +1,8 @@
 """Club create / detail / update endpoints (POST /clubs, GET and PATCH /clubs/{id})."""
 
 import pytest
+from sqlalchemy import delete
+from sqlalchemy.exc import IntegrityError
 
 from app.models import ClubEvent, Clubs, ClubStatus, Requirement
 from app.services.clubs import INITIAL_REQUIREMENTS
@@ -202,3 +204,12 @@ def test_update_missing_club_is_404(client, lead):
 def test_update_requires_authentication(client, db, lead):
     club = make_club(db, lead)
     assert client.patch(f"/clubs/{club.id}", json={"name": "Anon"}).status_code == 401
+
+
+def test_deleting_a_club_with_history_is_refused_by_the_foreign_key(db, lead):
+    # History is permanent: the events' foreign key forbids deleting their club,
+    # rather than cascading into the append-only trigger.
+    club = make_club(db, lead)
+    with pytest.raises(IntegrityError, match="fk_club_events_club_id"):
+        db.execute(delete(Clubs).where(Clubs.id == club.id))
+    db.rollback()

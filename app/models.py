@@ -5,6 +5,7 @@ from sqlalchemy import (
     CheckConstraint,
     DateTime,
     ForeignKey,
+    Index,
     MetaData,
     UniqueConstraint,
     text,
@@ -76,6 +77,8 @@ class User(Base):
 
 class Clubs(Base):
     __tablename__ = "clubs"
+    # Serves the admin review queue: filter by status, sort by updated_at.
+    __table_args__ = (Index("idx_clubs_status_updated", "status", "updated_at"),)
 
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str]
@@ -115,9 +118,15 @@ class Requirement(Base):
 
 class ClubEvent(Base):
     __tablename__ = "club_events"
+    # Serves a club's history: filter by club, newest first.
+    __table_args__ = (
+        Index("idx_events_club_time", "club_id", text("created_at DESC")),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    club_id: Mapped[int] = mapped_column(ForeignKey("clubs.id", ondelete="CASCADE"))
+    # RESTRICT, not CASCADE: history is append-only (a trigger rejects deletes),
+    # so a club with history can't be deleted either.
+    club_id: Mapped[int] = mapped_column(ForeignKey("clubs.id", ondelete="RESTRICT"))
     actor_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
     # Club-level: "created", "submitted", "review_started", "changes_requested",
     # "resubmitted", "approved", "rejected".
