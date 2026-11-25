@@ -20,7 +20,7 @@ class Settings(BaseSettings):
     @field_validator("DATABASE_URL")
     @classmethod
     def use_sqlalchemy_scheme(cls, url: str) -> str:
-        """Hosts such as Neon and Heroku hand out postgres:// URLs, a scheme
+        """Some hosts, such as Heroku, hand out postgres:// URLs, a scheme
         SQLAlchemy 2 no longer accepts."""
         if url.startswith("postgres://"):
             return "postgresql://" + url.removeprefix("postgres://")

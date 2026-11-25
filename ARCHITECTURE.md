@@ -27,22 +27,28 @@ setups.
 | `core/config.py` | Settings, read once from the environment or `.env` |
 | `core/security.py` | Password hashing, JWTs, and the `get_current_user` / `require_role` dependencies |
 | `seed.py`, `cli.py` | `make-admin` and `seed-demo` operator commands |
-| `alembic/` | Every schema change, as migrations |
+
+Every schema change is an Alembic migration in `alembic/` at the repo root.
 
 ### Rules the code follows
 
-- **Dependencies point inward.** Routers import services; services never import
-  FastAPI. A service raises a domain error (`Conflict("Cannot move drafting ->
-  approved")`) and the single handler in `main.py` turns it into a status code.
+- **Dependencies point inward.** Routers import services; services never raise
+  HTTP errors or use FastAPI's routing. A service raises a domain error
+  (`Conflict("Cannot move drafting -> approved")`) and the single handler in
+  `main.py` turns it into a status code. (`services/auth.py` does use the
+  hashing and token helpers in `core/security.py`, a module that also holds the
+  FastAPI auth dependencies.)
 - **One state machine.** `transitions.ALLOWED` lists every legal
   `(from, to)` status move and the role that may make it. An illegal move is a
   409; the wrong role is a 403. Guards (documents provided, all requirements
-  approved, a note for rejections) live next to it in `_check_guards`.
+  approved, a note for rejecting or requesting changes) live next to it in
+  `_check_guards`.
 - **Every write locks the club row first.** `get_club_for_update` loads the club
-  with `SELECT … FOR UPDATE`; every service that changes a club or its
-  requirements starts there. Two requests on one club therefore run one after
-  the other, and the second sees the first's result. Without it, ten parallel
-  submits all succeeded (`tests/test_concurrency.py`).
+  with `SELECT … FOR UPDATE`; every service that changes an existing club or
+  its requirements starts there. Two requests on one club therefore run one after
+  the other, and the second sees the first's result. Before the lock, ten
+  parallel submits all succeeded; `tests/test_concurrency.py` now proves
+  exactly one does.
 - **One transaction per request.** `get_db` (`database.py`) opens a session per
   request and rolls back if anything raises; each service commits once, so a
   status change and its history event are saved together or not at all.
@@ -81,7 +87,8 @@ approved once all six are approved.
 - The frontend sends the access token as `Authorization: Bearer …`.
   `get_current_user` decodes it; `require_role(UserRole.admin)` guards admin
   routes before their body runs.
-- `POST /api/auth/refresh` swaps the cookie for a new access token;
+- `POST /api/auth/refresh` exchanges the refresh cookie for a new access token
+  (the cookie itself is unchanged: there is no rotation);
   `POST /api/auth/logout` revokes it in the database.
 - Everyone who signs up is a club lead. Admins are made with
   `python -m app.cli make-admin <email>`.

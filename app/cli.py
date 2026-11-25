@@ -8,8 +8,13 @@ import argparse
 import sys
 
 from app.database import SessionLocal
-from app.exceptions import Conflict
-from app.seed import DEMO_ADMIN_EMAIL, DEMO_LEAD_EMAIL, DEMO_PASSWORD, seed_demo
+from app.seed import (
+    DEMO_ADMIN_EMAIL,
+    DEMO_LEAD_EMAIL,
+    DEMO_PASSWORD,
+    demo_data_exists,
+    seed_demo,
+)
 from app.services.auth import make_admin
 
 
@@ -42,11 +47,10 @@ def _make_admin(email: str) -> int:
 
 def _seed_demo() -> int:
     with SessionLocal() as db:
-        try:
-            seed_demo(db)
-        except Conflict:
+        if demo_data_exists(db):
             print("Demo data already exists", file=sys.stderr)
             return 1
+        seed_demo(db)
     print(f"Admin:     {DEMO_ADMIN_EMAIL} / {DEMO_PASSWORD}")
     print(f"Club lead: {DEMO_LEAD_EMAIL} / {DEMO_PASSWORD}")
     return 0

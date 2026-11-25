@@ -7,8 +7,8 @@ to its paperwork (constitution, exec list, budget, advisor form) and submits it.
 An admin reviews each document, then approves the club, rejects it, or asks for
 changes. Every step is recorded in the club's history.
 
-![Screenshot of the club detail page](docs/screenshot.png)
-<!-- Screenshot placeholder: add docs/screenshot.png -->
+<!-- Screenshot placeholder: add docs/screenshot.png and show it here with
+![Club detail page](docs/screenshot.png) -->
 
 ## Tech stack
 
@@ -26,7 +26,7 @@ You need Postgres 16 running locally, [uv](https://docs.astral.sh/uv/) and
 Node (the version in `frontend/.nvmrc`).
 
 ```sh
-cp .env.example .env              # then set SECRET_KEY (see the file)
+cp .env.example .env              # then check DATABASE_URL and set SECRET_KEY
 createdb club_setup_tool
 uv sync
 uv run alembic upgrade head       # create the tables
@@ -89,8 +89,11 @@ with Postgres on [Neon](https://neon.tech). Both have free tiers.
 3. When Render asks for `DATABASE_URL`, paste the Neon connection string.
 4. Deploy. Each start runs `alembic upgrade head` before the server, so the
    tables are created on the first deploy. Render checks `/health`.
-5. **Demo data (optional):** open the service's **Shell** in Render and run
-   `python -m app.cli seed-demo`.
+5. **Demo data (optional):** Render's free plan has no shell, so seed from your
+   own machine against the Neon database:
+   `DATABASE_URL='<neon connection string>' uv run python -m app.cli seed-demo`.
+   The demo password is in this README, so anyone can then sign in to your
+   deployment as the demo admin. That suits a public demo; skip this step otherwise.
 
 On the free plan the service sleeps after 15 minutes without traffic, so the
 first request after that takes about a minute.

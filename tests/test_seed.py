@@ -2,7 +2,7 @@ import pytest
 
 from app.exceptions import Conflict
 from app.models import ClubEvent, Clubs, ClubStatus, User, UserRole
-from app.seed import DEMO_ADMIN_EMAIL, DEMO_LEAD_EMAIL, seed_demo
+from app.seed import DEMO_ADMIN_EMAIL, DEMO_LEAD_EMAIL, demo_data_exists, seed_demo
 
 
 def user_by_email(db, email):
@@ -40,3 +40,9 @@ def test_seeding_twice_is_refused(db):
     seed_demo(db)
     with pytest.raises(Conflict):
         seed_demo(db)
+
+
+def test_demo_data_exists_only_after_seeding(db):
+    assert demo_data_exists(db) is False
+    seed_demo(db)
+    assert demo_data_exists(db) is True
