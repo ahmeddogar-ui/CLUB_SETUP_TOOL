@@ -2,7 +2,7 @@
   "$schema": "./node_modules/oxlint/configuration_schema.json",
   "plugins": ["react", "typescript", "oxc"],
   "options": { "typeAware": true },
-  "ignorePatterns": ["public/maplibre/**", "dist/**"],
+  "ignorePatterns": ["dist/**"],
   "rules": {
     "react/rules-of-hooks": "error",
     "react/exhaustive-deps": "warn",

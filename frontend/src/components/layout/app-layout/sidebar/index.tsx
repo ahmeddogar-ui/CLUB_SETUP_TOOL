@@ -1,34 +1,33 @@
-import { Sidebar, SidebarContent, useSidebar } from "@/components/ui/sidebar";
+import { AppLogo } from "@/components/shared/app-logo";
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarGroup,
+  SidebarGroupLabel,
+  SidebarHeader,
+  SidebarMenu,
+  SidebarMenuItem,
+  useSidebar,
+} from "@/components/ui/sidebar";
 import { useAuth } from "@/contexts";
-import { useState } from "react";
-import { useLocation } from "react-router";
-import { navItems } from "./data";
-import AppSidebarHeader from "./sidebar-header";
-import SidebarNavGroup from "./sidebar-nav-group";
-import type { MenuType, NavItem } from "./types";
+import { HorizontalDotsIcon, LayoutGridIcon, TaskIcon } from "@/icons";
+import { cn } from "@/utils";
+import { Link, useLocation } from "react-router";
 
-const menuSections: { type: MenuType; labelKey: string; items: NavItem[] }[] = [
-  { type: "main", labelKey: "groups.menu", items: navItems },
+const NAV_ITEMS = [
+  {
+    label: "Clubs",
+    path: "/",
+    icon: <LayoutGridIcon className="size-6" />,
+    isAdminOnly: false,
+  },
+  {
+    label: "Review queue",
+    path: "/review",
+    icon: <TaskIcon className="size-6" />,
+    isAdminOnly: true,
+  },
 ];
-
-const findMatchingSubmenu = (path: string) => {
-  for (const section of menuSections) {
-    for (let index = 0; index < section.items.length; index++) {
-      const nav = section.items[index];
-      if (
-        nav.subItems?.some(
-          (subItem) =>
-            subItem.path === path ||
-            (subItem.path === "/ai-settings" &&
-              path.startsWith("/ai-settings")),
-        )
-      ) {
-        return { type: section.type, index };
-      }
-    }
-  }
-  return null;
-};
 
 export default function AppSidebar() {
   const { open, isMobile, isHovered } = useSidebar();
@@ -36,59 +35,57 @@ export default function AppSidebar() {
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
 
-  const showContent = open || isHovered || isMobile;
-
-  const [openSubmenu, setOpenSubmenu] = useState<{
-    type: MenuType;
-    index: number;
-  } | null>(() => findMatchingSubmenu(pathname));
-
-  const [prevPathname, setPrevPathname] = useState(pathname);
-  if (prevPathname !== pathname) {
-    setPrevPathname(pathname);
-    setOpenSubmenu(findMatchingSubmenu(pathname));
-  }
-
-  const handleSubmenuToggle = (index: number, menuType: MenuType) => {
-    setOpenSubmenu((prevOpenSubmenu) => {
-      if (
-        prevOpenSubmenu &&
-        prevOpenSubmenu.type === menuType &&
-        prevOpenSubmenu.index === index
-      ) {
-        return null;
-      }
-      return { type: menuType, index };
-    });
-  };
-
-  const activeSections = menuSections
-    .map((section) => ({
-      ...section,
-      items: section.items.filter((item) => !item.isAdminOnly || isAdmin),
-    }))
-    .filter((section) => section.items.length > 0);
+  // A collapsed sidebar shows icons only, until hovered.
+  const showLabels = open || isHovered || isMobile;
+  const visibleItems = NAV_ITEMS.filter((item) => !item.isAdminOnly || isAdmin);
 
   return (
     <Sidebar side="left" collapsible="icon">
-      <AppSidebarHeader showContent={showContent} />
+      <SidebarHeader className="px-5 py-8">
+        <Link to="/">
+          <AppLogo showName={showLabels} />
+        </Link>
+      </SidebarHeader>
 
       <SidebarContent className="overflow-y-auto px-5 duration-300 ease-linear">
         <nav className="mb-6">
-          <div className="flex flex-col gap-4">
-            {activeSections.map((section) => (
-              <SidebarNavGroup
-                key={section.type}
-                labelKey={section.labelKey}
-                menuType={section.type}
-                items={section.items}
-                openSubmenu={openSubmenu}
-                showContent={showContent}
-                pathname={pathname}
-                onToggleSubmenu={handleSubmenuToggle}
-              />
-            ))}
-          </div>
+          <SidebarGroup className="p-0">
+            <SidebarGroupLabel
+              className={cn(
+                "mb-4 flex h-auto p-0 text-xs leading-5 text-gray-400 uppercase",
+                showLabels ? "justify-start" : "xl:justify-center",
+              )}
+            >
+              {showLabels ? "Menu" : <HorizontalDotsIcon />}
+            </SidebarGroupLabel>
+            <SidebarMenu className="gap-1">
+              {visibleItems.map((item) => {
+                const isActive = item.path === pathname;
+                return (
+                  <SidebarMenuItem key={item.path}>
+                    <Link
+                      to={item.path}
+                      className={cn(
+                        "group menu-item",
+                        isActive ? "menu-item-active" : "menu-item-inactive",
+                      )}
+                    >
+                      <span
+                        className={
+                          isActive
+                            ? "menu-item-icon-active"
+                            : "menu-item-icon-inactive"
+                        }
+                      >
+                        {item.icon}
+                      </span>
+                      {showLabels && <span>{item.label}</span>}
+                    </Link>
+                  </SidebarMenuItem>
+                );
+              })}
+            </SidebarMenu>
+          </SidebarGroup>
         </nav>
       </SidebarContent>
     </Sidebar>

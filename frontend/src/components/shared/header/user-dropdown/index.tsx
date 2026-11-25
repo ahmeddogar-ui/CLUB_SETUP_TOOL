@@ -7,13 +7,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown";
 import { useAuth } from "@/contexts";
-import { useTranslations } from "@/i18n";
 import { ChevronDownIcon, LogOutIcon } from "@/icons";
 import { cn, getInitials } from "@/utils";
 import { useState } from "react";
 
 export default function UserDropdown() {
-  const t = useTranslations("userDropdown");
   const { user, signOut } = useAuth();
   const name = user?.name ?? "";
   const [isOpen, setIsOpen] = useState(false);
@@ -49,7 +47,7 @@ export default function UserDropdown() {
 
         <DropdownMenuItem variant="destructive" onClick={signOut}>
           <LogOutIcon />
-          {t("signOut")}
+          Sign out
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

@@ -3,14 +3,12 @@ import ThemeToggleButton from "@/components/shared/header/theme-toggler";
 import UserDropdown from "@/components/shared/header/user-dropdown";
 import { Button } from "@/components/ui/button";
 import { useSidebar } from "@/components/ui/sidebar";
-import { useTranslations } from "@/i18n";
 import { HorizontalDotsIcon, MenuTwoIcon, XIcon } from "@/icons";
 import { cn } from "@/utils";
 import { useState } from "react";
 import { Link } from "react-router";
 
 export default function AppHeader() {
-  const t = useTranslations("header");
   const [isApplicationMenuOpen, setApplicationMenuOpen] = useState(false);
   const { openMobile, toggleSidebar } = useSidebar();
 
@@ -28,7 +26,7 @@ export default function AppHeader() {
             size="icon"
             className="text-gray-500 lg:size-11 dark:text-gray-400"
             onClick={toggleSidebar}
-            aria-label={t("toggleSidebar")}
+            aria-label="Toggle sidebar"
           >
             {openMobile ? (
               <XIcon className="size-6" />

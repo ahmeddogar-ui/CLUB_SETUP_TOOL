@@ -1,7 +1,6 @@
 import App from "@/App";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, ThemeProvider } from "@/contexts";
-import { I18nProvider } from "@/i18n";
 import { TOKEN_KEY } from "@/lib/api";
 import type { User } from "@/lib/types";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -38,13 +37,11 @@ export function renderApp(
       <MemoryRouter initialEntries={[path]}>
         <ThemeProvider>
           <HelmetProvider>
-            <I18nProvider>
-              <TooltipProvider>
-                <AuthProvider>
-                  <App />
-                </AuthProvider>
-              </TooltipProvider>
-            </I18nProvider>
+            <TooltipProvider>
+              <AuthProvider>
+                <App />
+              </AuthProvider>
+            </TooltipProvider>
           </HelmetProvider>
         </ThemeProvider>
       </MemoryRouter>

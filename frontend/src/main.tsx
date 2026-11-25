@@ -1,6 +1,5 @@
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, ThemeProvider } from "@/contexts";
-import { I18nProvider } from "@/i18n";
 import { ApiError, TOKEN_KEY } from "@/lib/api";
 import {
   MutationCache,
@@ -44,13 +43,11 @@ createRoot(document.getElementById("root")!).render(
       <BrowserRouter>
         <ThemeProvider>
           <HelmetProvider>
-            <I18nProvider>
-              <TooltipProvider>
-                <AuthProvider>
-                  <App />
-                </AuthProvider>
-              </TooltipProvider>
-            </I18nProvider>
+            <TooltipProvider>
+              <AuthProvider>
+                <App />
+              </AuthProvider>
+            </TooltipProvider>
           </HelmetProvider>
         </ThemeProvider>
       </BrowserRouter>
