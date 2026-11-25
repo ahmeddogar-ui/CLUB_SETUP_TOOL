@@ -22,10 +22,12 @@ def test_dbhealth_is_ok(client):
 
 def test_dbhealth_is_503_when_the_database_is_unreachable(client):
     engine = create_engine(UNREACHABLE_DATABASE_URL)
-    app.dependency_overrides[get_db] = lambda: Session(engine)
+    session = Session(engine)
+    app.dependency_overrides[get_db] = lambda: session
     try:
         response = client.get("/dbhealth")
     finally:
+        session.close()
         engine.dispose()
     assert response.status_code == 503
     assert response.json() == {"status": "unavailable"}

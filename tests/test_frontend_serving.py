@@ -6,6 +6,8 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
+from app.main import revalidate_html_pages
+
 INDEX_HTML = "<!doctype html><title>Club Setup</title>"
 PAGE_NAVIGATION = {"Accept": "text/html"}
 
@@ -19,6 +21,7 @@ def frontend_client(tmp_path):
     (tmp_path / "secret.txt").write_text("outside dist")
 
     app = FastAPI()
+    app.middleware("http")(revalidate_html_pages)
     app.frontend("/", directory=dist, fallback="index.html")
     return TestClient(app)
 
@@ -56,3 +59,14 @@ def test_a_path_outside_dist_is_never_served(frontend_client, path):
     response = frontend_client.get(path, headers=PAGE_NAVIGATION)
     assert "outside dist" not in response.text
     assert "root:" not in response.text
+
+
+def test_pages_are_revalidated_so_a_redeploy_is_picked_up(frontend_client):
+    # A stale index.html would point at hashed assets that no longer exist.
+    response = frontend_client.get("/clubs/3", headers=PAGE_NAVIGATION)
+    assert response.headers["Cache-Control"] == "no-cache"
+
+
+def test_hashed_assets_keep_the_default_caching(frontend_client):
+    response = frontend_client.get("/assets/app.js")
+    assert "Cache-Control" not in response.headers

@@ -25,7 +25,7 @@ services:
     environment:
       DATABASE_URL: postgresql://postgres:postgres@db:5432/club_setup_tool
       SECRET_KEY: local-only-insecure-secret-key-do-not-use-in-production
-      # Plain HTTP locally, so the cookies must not be marked Secure.
+      # Plain HTTP locally, so the refresh cookie must not be marked Secure.
       SESSION_HTTPS_ONLY: "false"
 
 volumes:

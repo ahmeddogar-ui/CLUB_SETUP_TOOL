@@ -1,6 +1,7 @@
+from collections.abc import Awaitable, Callable
 from pathlib import Path
 
-from fastapi import APIRouter, FastAPI, Request
+from fastapi import APIRouter, FastAPI, Request, Response
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
 from sqlalchemy.exc import OperationalError
@@ -20,6 +21,21 @@ app = FastAPI(
     openapi_url="/api/openapi.json" if settings.ENABLE_API_DOCS else None,
     redoc_url=None,
 )
+
+
+async def revalidate_html_pages(
+    request: Request, call_next: Callable[[Request], Awaitable[Response]]
+) -> Response:
+    """Browsers must re-check index.html on every load: after a deploy, a cached
+    copy would point at hashed asset files that no longer exist. The hashed
+    assets themselves never change, so they keep normal caching."""
+    response = await call_next(request)
+    if response.headers.get("content-type", "").startswith("text/html"):
+        response.headers["Cache-Control"] = "no-cache"
+    return response
+
+
+app.middleware("http")(revalidate_html_pages)
 
 STATUS_FOR_ERROR: dict[type[DomainError], int] = {
     NotFound: 404,

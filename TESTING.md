@@ -91,7 +91,7 @@ it yourself.
 
 ## CI
 
-`.github/workflows/ci.yml` runs four jobs in parallel on every PR and on pushes to `main`:
+`.github/workflows/ci.yml` runs five jobs in parallel on every PR and on pushes to `main`:
 
 1. **Backend lint and types**: `ruff check`, `ruff format --check` and `mypy`.
 2. **Backend tests**: pytest with coverage against Postgres 16, failing below 90% coverage;
@@ -100,6 +100,7 @@ it yourself.
    `vite.config.ts`), production build.
 4. **End-to-end**: the Playwright journey. On failure, the HTML report and trace are
    uploaded as an artifact.
+5. **Docker image**: `docker build .`, the image Render deploys.
 
 Coverage for both halves appears in each run's job summary. The thresholds are floors set
 just under today's numbers, so treat a drop as a signal, not a target to game.

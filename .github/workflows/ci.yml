@@ -143,3 +143,13 @@ jobs:
           name: playwright-report
           path: frontend/playwright-report
           retention-days: 7
+
+  docker:
+    name: Docker image builds
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      # The image Render deploys; building it here catches a broken stage
+      # before a deploy does.
+      - run: docker build .

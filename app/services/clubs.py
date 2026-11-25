@@ -166,13 +166,13 @@ def update_club_for_user(
 
 def submit_club_for_user(db: Session, club_id: int, user: User) -> Clubs:
     club = get_club_for_update(db, club_id)
-    ensure_owner_or_admin(club, user)
+    ensure_owner(club, user)
     return attempt_transition(db, club, ClubStatus.submitted, user)
 
 
 def resubmit_club_for_user(db: Session, club_id: int, user: User) -> Clubs:
     club = get_club_for_update(db, club_id)
-    ensure_owner_or_admin(club, user)
+    ensure_owner(club, user)
     if club.status != ClubStatus.changes_requested:
         raise Conflict(f"Cannot resubmit a club in status {club.status.value}")
     return attempt_transition(db, club, ClubStatus.submitted, user)

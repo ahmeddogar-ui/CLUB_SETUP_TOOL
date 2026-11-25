@@ -21,7 +21,7 @@ def register(client, name="Ada", email="ada@example.com", password="hunter2-hunt
 
 
 def login(client, email, password):
-    # /auth/login is OAuth2PasswordRequestForm -- form-encoded, not JSON.
+    # The OAuth2 password flow: form-encoded, not JSON.
     return client.post(
         "/api/auth/login", data={"username": email, "password": password}
     )

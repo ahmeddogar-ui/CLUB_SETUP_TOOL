@@ -1,5 +1,6 @@
 import hashlib
 import secrets
+from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 
 import jwt
@@ -10,7 +11,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.database import get_db
-from app.models import User
+from app.models import User, UserRole
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
 
@@ -65,7 +66,7 @@ def get_current_user(
     return user
 
 
-def require_role(required_role: str):
+def require_role(required_role: UserRole) -> Callable[..., User]:
     def role_checker(current_user: User = Depends(get_current_user)) -> User:
         if current_user.role != required_role:
             raise HTTPException(
