@@ -9,7 +9,7 @@ VALID_SECRET = "a" * 32
 def make_settings(**overrides):
     values = {"DATABASE_URL": "postgresql://localhost/db", "SECRET_KEY": VALID_SECRET}
     # _env_file=None: read only what the test passes, never the developer's .env.
-    return Settings(_env_file=None, **(values | overrides))  # type: ignore[call-arg]
+    return Settings(_env_file=None, **(values | overrides))
 
 
 def test_secret_key_shorter_than_32_characters_is_refused():

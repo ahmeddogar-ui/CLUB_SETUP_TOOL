@@ -14,7 +14,7 @@ WORKDIR /app
 # Lockfiles first so `uv sync` is cached until dependencies change.
 # package = false in pyproject.toml, so there is no project to install afterwards.
 COPY pyproject.toml uv.lock ./
-RUN uv sync --locked --no-dev
+RUN uv sync --locked --no-dev --no-cache
 COPY app/ app/
 COPY alembic/ alembic/
 COPY alembic.ini ./

@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from fastapi import APIRouter, FastAPI, Request
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
@@ -6,10 +8,12 @@ from sqlalchemy.exc import OperationalError
 from app.core.config import settings
 from app.database import DbSession
 from app.exceptions import Conflict, DomainError, Forbidden, NotFound, Unauthorized
-from app.frontend import FRONTEND_DIST, mount_frontend
 from app.routers.auth import router as auth_router
 from app.routers.clubs import router as clubs_router
 from app.routers.requirements import router as requirements_router
+
+# Where `npm run build` puts the React app. In development Vite serves it instead.
+FRONTEND_DIST = Path(__file__).resolve().parent.parent / "frontend" / "dist"
 
 app = FastAPI(
     docs_url="/api/docs" if settings.ENABLE_API_DOCS else None,
@@ -57,6 +61,7 @@ api.include_router(clubs_router)
 api.include_router(requirements_router)
 app.include_router(api)
 
-# Last: it answers every path the routes above don't.
+# Checked only after every route above: built files as they are, index.html for
+# page navigations to client-side routes (/clubs/3), and 404 for anything else.
 if FRONTEND_DIST.is_dir():
-    mount_frontend(app, FRONTEND_DIST)
+    app.frontend("/", directory=FRONTEND_DIST, fallback="index.html")
