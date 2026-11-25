@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Textarea } from "@/components/ui/textarea";
+import { NOTE_MAX_LENGTH } from "@/lib/limits";
 import { OctagonAlertIcon } from "@/icons";
 import { apiFetch } from "@/lib/api";
 import { useState } from "react";
@@ -91,6 +92,7 @@ export function NoteActionDialog({
             </FieldLabel>
             <Textarea
               rows={4}
+              maxLength={NOTE_MAX_LENGTH}
               value={note}
               onChange={(event) => setNote(event.target.value)}
               placeholder="Explain your decision"

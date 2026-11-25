@@ -80,6 +80,18 @@ describe("signing in", () => {
 });
 
 describe("signing up", () => {
+  it("refuses names longer than the backend allows", async () => {
+    const { user } = renderApp("/signup");
+
+    await user.click(await screen.findByLabelText(/^first name/i));
+    await user.paste("a".repeat(50));
+    await user.click(screen.getByRole("button", { name: "Sign Up" }));
+
+    expect(
+      await screen.findByText("First name must be at most 49 characters"),
+    ).toBeInTheDocument();
+  });
+
   it("registers with the combined name, then asks the user to sign in", async () => {
     let registered: unknown;
     server.use(

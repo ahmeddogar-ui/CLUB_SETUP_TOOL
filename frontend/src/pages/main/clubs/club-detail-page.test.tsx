@@ -271,6 +271,19 @@ describe("club detail as an admin", () => {
     ).toBeInTheDocument();
   });
 
+  it("stops a note at the length the backend allows", async () => {
+    const club = buildClub({ status: "under_review" });
+    serveClub(club);
+    const { user } = await openClub(club, ADMIN);
+
+    await user.click(screen.getByRole("button", { name: "Request changes" }));
+    const note = within(await screen.findByRole("dialog")).getByRole("textbox");
+    await user.click(note);
+    await user.paste("a".repeat(2001));
+
+    expect(note).toHaveValue("a".repeat(2000));
+  });
+
   it("requires a note to request changes and sends it trimmed", async () => {
     const club = buildClub({ status: "under_review" });
     const state = serveClub(club);

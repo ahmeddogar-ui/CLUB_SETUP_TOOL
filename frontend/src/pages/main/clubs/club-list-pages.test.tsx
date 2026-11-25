@@ -125,4 +125,21 @@ describe("new club", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("Description is required")).toBeInTheDocument();
   });
+
+  it("refuses a name or description longer than the backend allows", async () => {
+    const { user } = renderApp("/clubs/new", { signedInAs: LEAD });
+
+    await user.click(await screen.findByLabelText(/^club name/i));
+    await user.paste("a".repeat(101));
+    await user.click(screen.getByLabelText(/^description/i));
+    await user.paste("a".repeat(2001));
+    await user.click(screen.getByRole("button", { name: "Create club" }));
+
+    expect(
+      await screen.findByText("Club name must be at most 100 characters"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Description must be at most 2000 characters"),
+    ).toBeInTheDocument();
+  });
 });

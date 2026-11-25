@@ -20,8 +20,10 @@ from app.models import (
 )
 
 PERSON_NAME_MAX_LENGTH = 100
+# The longest address email-validator accepts (RFC 5321).
+EMAIL_MAX_LENGTH = 254
 PASSWORD_MIN_LENGTH = 8
-# Argon2 hashes any length, but an unbounded password lets one request burn CPU.
+# Keeps request bodies, and what Argon2 has to hash, bounded.
 PASSWORD_MAX_LENGTH = 128
 CLUB_NAME_MAX_LENGTH = 100
 DESCRIPTION_MAX_LENGTH = 2000
@@ -49,7 +51,10 @@ Description = Annotated[
         strip_whitespace=True, min_length=1, max_length=DESCRIPTION_MAX_LENGTH
     ),
 ]
-Note = Annotated[str, StringConstraints(max_length=NOTE_MAX_LENGTH)]
+# Trimmed before the length check, so surrounding spaces never count.
+Note = Annotated[
+    str, StringConstraints(strip_whitespace=True, max_length=NOTE_MAX_LENGTH)
+]
 
 
 class UserRegisterRequest(BaseModel):
@@ -95,9 +100,9 @@ class NoteRequest(BaseModel):
     @field_validator("note")
     @classmethod
     def note_not_blank(cls, value: str) -> str:
-        if not value.strip():
+        if not value:
             raise ValueError("a note is required for this action")
-        return value.strip()
+        return value
 
 
 class OptionalNoteRequest(BaseModel):

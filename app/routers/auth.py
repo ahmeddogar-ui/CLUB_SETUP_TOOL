@@ -1,13 +1,17 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Cookie, Depends, HTTPException, Response, status
-from fastapi.security import OAuth2PasswordRequestForm
+from fastapi import APIRouter, Cookie, Depends, Form, HTTPException, Response, status
 
 from app.core.config import settings
 from app.core.security import get_current_user
 from app.database import DbSession
 from app.models import User
-from app.schemas import UserOut, UserRegisterRequest
+from app.schemas import (
+    EMAIL_MAX_LENGTH,
+    PASSWORD_MAX_LENGTH,
+    UserOut,
+    UserRegisterRequest,
+)
 from app.services.auth import (
     log_in,
     refresh_access_token,
@@ -55,13 +59,16 @@ def register(payload: UserRegisterRequest, db: DbSession):
     return register_user(db, payload.name, payload.email, payload.password)
 
 
+# Form fields, as the OAuth2 password flow sends them; named and bounded here
+# rather than taken from OAuth2PasswordRequestForm, which has no length limits.
 @router.post("/login")
 def login(
     response: Response,
     db: DbSession,
-    form_data: OAuth2PasswordRequestForm = Depends(),
+    username: Annotated[str, Form(max_length=EMAIL_MAX_LENGTH)],
+    password: Annotated[str, Form(max_length=PASSWORD_MAX_LENGTH)],
 ):
-    access_token, refresh_token = log_in(db, form_data.username, form_data.password)
+    access_token, refresh_token = log_in(db, username, password)
     _set_refresh_cookie(response, refresh_token)
     return _bearer(access_token)
 
