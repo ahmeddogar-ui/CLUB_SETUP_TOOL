@@ -28,9 +28,9 @@ def _must_not_run(*args, **kwargs):
 @pytest.fixture
 def body_must_not_run(monkeypatch):
     # The route bodies are thin wrappers now; the work they'd do lives in the services.
-    monkeypatch.setattr(clubs_service, "get_club_or_404", _must_not_run)
+    monkeypatch.setattr(clubs_service, "get_club_for_update", _must_not_run)
     monkeypatch.setattr(clubs_service, "attempt_transition", _must_not_run)
-    monkeypatch.setattr(requirements_service, "get_club_or_404", _must_not_run)
+    monkeypatch.setattr(requirements_service, "get_club_for_update", _must_not_run)
 
 
 @pytest.mark.parametrize(("action", "body"), ADMIN_ROUTES)

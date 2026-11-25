@@ -106,6 +106,23 @@ def get_club_or_404(db: Session, club_id: int) -> Clubs:
     return club
 
 
+def get_club_for_update(db: Session, club_id: int) -> Clubs:
+    """Loads the club and locks its row until the transaction ends. Every write
+    to a club or its requirements starts here, so two requests on one club run
+    one after the other and each one's checks see the other's committed result.
+    populate_existing() replaces any stale copy this session already holds."""
+    club = (
+        db.query(Clubs)
+        .filter(Clubs.id == club_id)
+        .with_for_update()
+        .populate_existing()
+        .first()
+    )
+    if not club:
+        raise NotFound("Club not found")
+    return club
+
+
 def ensure_owner_or_admin(club: Clubs, user: User) -> None:
     if user.role != UserRole.admin and club.submitter_id != user.id:
         raise Forbidden("Not your club")
@@ -132,7 +149,7 @@ def update_club_for_user(
     description: str | None,
 ) -> Clubs:
     """Ownership before status, so a stranger never learns a club's state."""
-    club = get_club_or_404(db, club_id)
+    club = get_club_for_update(db, club_id)
     ensure_owner(club, user)
 
     if club.status not in EDITABLE_STATUSES:
@@ -149,12 +166,14 @@ def update_club_for_user(
 
 
 def submit_club_for_user(db: Session, club_id: int, user: User) -> Clubs:
-    club = get_club_for_user(db, club_id, user)
+    club = get_club_for_update(db, club_id)
+    ensure_owner_or_admin(club, user)
     return attempt_transition(db, club, ClubStatus.submitted, user)
 
 
 def resubmit_club_for_user(db: Session, club_id: int, user: User) -> Clubs:
-    club = get_club_for_user(db, club_id, user)
+    club = get_club_for_update(db, club_id)
+    ensure_owner_or_admin(club, user)
     if club.status != ClubStatus.changes_requested:
         raise Conflict(f"Cannot resubmit a club in status {club.status.value}")
     return attempt_transition(db, club, ClubStatus.submitted, user)
@@ -168,7 +187,7 @@ def review_club(
     note: str | None = None,
 ) -> Clubs:
     """Admin-side transition (start-review / request-changes / approve / reject)."""
-    club = get_club_or_404(db, club_id)
+    club = get_club_for_update(db, club_id)
     return attempt_transition(db, club, to_status, admin, note)
 
 

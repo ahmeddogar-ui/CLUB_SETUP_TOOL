@@ -11,7 +11,7 @@ from app.models import (
     RequirementType,
     User,
 )
-from app.services.clubs import EDITABLE_STATUSES, ensure_owner, get_club_or_404
+from app.services.clubs import EDITABLE_STATUSES, ensure_owner, get_club_for_update
 
 
 def get_requirement_or_404(
@@ -34,7 +34,7 @@ def get_requirement_or_404(
 def _get_reviewable_requirement(
     db: Session, club_id: int, requirement_type: RequirementType
 ) -> tuple[Clubs, Requirement]:
-    club = get_club_or_404(db, club_id)
+    club = get_club_for_update(db, club_id)
     if club.status != ClubStatus.under_review:
         raise Conflict(
             "Requirements can only be reviewed while the club is under_review"
@@ -74,7 +74,7 @@ def set_requirement_link(
     link_url: str,
     user: User,
 ) -> Requirement:
-    club = get_club_or_404(db, club_id)
+    club = get_club_for_update(db, club_id)
     ensure_owner(club, user)
 
     if club.status not in EDITABLE_STATUSES:
