@@ -1,7 +1,14 @@
-import { ApiError, apiFetch, TOKEN_KEY } from "@/lib/api";
+import { apiFetch, SESSION_EXPIRED_EVENT, TOKEN_KEY } from "@/lib/api";
 import type { User } from "@/lib/types";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { createContext, useContext, useState, type ReactNode } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useState,
+  type ReactNode,
+} from "react";
 
 type AuthContextType = {
   user: User | null;
@@ -18,17 +25,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const { data: user, isLoading } = useQuery({
     queryKey: ["me", token],
-    queryFn: async () => {
-      try {
-        return await apiFetch<User>("/auth/me");
-      } catch (error) {
-        if (error instanceof ApiError && error.status === 401) {
-          localStorage.removeItem(TOKEN_KEY);
-          return null;
-        }
-        throw error;
-      }
-    },
+    queryFn: () => apiFetch<User>("/auth/me"),
     enabled: token !== null,
     retry: false,
   });
@@ -38,14 +35,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setToken(newToken);
   };
 
+  const signOutLocally = useCallback(() => {
+    localStorage.removeItem(TOKEN_KEY);
+    setToken(null);
+    queryClient.clear();
+  }, [queryClient]);
+
+  useEffect(() => {
+    window.addEventListener(SESSION_EXPIRED_EVENT, signOutLocally);
+    return () =>
+      window.removeEventListener(SESSION_EXPIRED_EVENT, signOutLocally);
+  }, [signOutLocally]);
+
   const signOut = () => {
     // Revoke the refresh cookie. Signing out locally doesn't wait for it: with
     // the access token gone the app never asks to refresh, so a failed revoke
     // leaves nothing usable behind in this browser.
     apiFetch("/auth/logout", { method: "POST" }).catch(() => undefined);
-    localStorage.removeItem(TOKEN_KEY);
-    setToken(null);
-    queryClient.clear();
+    signOutLocally();
   };
 
   return (

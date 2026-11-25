@@ -166,6 +166,23 @@ describe("route guards", () => {
     expect(localStorage.getItem(TOKEN_KEY)).toBeNull();
   });
 
+  it("signs out when the session expires mid-use", async () => {
+    server.use(
+      http.get("/api/clubs", () =>
+        HttpResponse.json({ detail: "Expired" }, { status: 401 }),
+      ),
+      http.post("/api/auth/refresh", () =>
+        HttpResponse.json({ detail: "Invalid refresh token" }, { status: 401 }),
+      ),
+    );
+    renderApp("/", { signedInAs: LEAD });
+
+    expect(
+      await screen.findByRole("heading", { name: "Sign In" }),
+    ).toBeInTheDocument();
+    expect(localStorage.getItem(TOKEN_KEY)).toBeNull();
+  });
+
   it("revokes the session on the server when signing out", async () => {
     let loggedOut = false;
     server.use(

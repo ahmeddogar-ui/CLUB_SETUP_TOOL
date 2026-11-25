@@ -1,7 +1,16 @@
 import { server } from "@/test/server";
 import { http, HttpResponse } from "msw";
-import { describe, expect, it } from "vitest";
-import { ApiError, apiFetch, TOKEN_KEY } from "./api";
+import { describe, expect, it, onTestFinished, vi } from "vitest";
+import { ApiError, apiFetch, SESSION_EXPIRED_EVENT, TOKEN_KEY } from "./api";
+
+function listenForSessionExpiry() {
+  const listener = vi.fn();
+  window.addEventListener(SESSION_EXPIRED_EVENT, listener);
+  onTestFinished(() =>
+    window.removeEventListener(SESSION_EXPIRED_EVENT, listener),
+  );
+  return listener;
+}
 
 function captureRequest() {
   const captured: { request?: Request } = {};
@@ -160,14 +169,33 @@ describe("apiFetch", () => {
       expect(seenTokens).toEqual(["Bearer stale"]);
     });
 
+    it("ends the session when the refresh is refused", async () => {
+      localStorage.setItem(TOKEN_KEY, "stale");
+      expireTokenUntilRefreshed();
+      server.use(
+        http.post("/api/auth/refresh", () =>
+          HttpResponse.json(
+            { detail: "Invalid refresh token" },
+            { status: 401 },
+          ),
+        ),
+      );
+      const sessionExpired = listenForSessionExpiry();
+
+      await expect(apiFetch("/echo")).rejects.toMatchObject({ status: 401 });
+      expect(localStorage.getItem(TOKEN_KEY)).toBeNull();
+      expect(sessionExpired).toHaveBeenCalledOnce();
+    });
+
     it("does not try to refresh when nobody is signed in", async () => {
       // No refresh handler: an attempt would fail the test as an unhandled request.
       expireTokenUntilRefreshed();
       await expect(apiFetch("/echo")).rejects.toMatchObject({ status: 401 });
     });
 
-    it("does not try to refresh a rejected login", async () => {
+    it("does not try to refresh or end the session on a rejected login", async () => {
       localStorage.setItem(TOKEN_KEY, "stale");
+      const sessionExpired = listenForSessionExpiry();
       server.use(
         http.post("/api/auth/login", () =>
           HttpResponse.json(
@@ -182,6 +210,7 @@ describe("apiFetch", () => {
           body: new URLSearchParams(),
         }),
       ).rejects.toMatchObject({ status: 401 });
+      expect(sessionExpired).not.toHaveBeenCalled();
     });
   });
 });

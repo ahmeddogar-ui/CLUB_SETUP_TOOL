@@ -1,5 +1,9 @@
 export const TOKEN_KEY = "access_token";
 
+// This module can't reach React state, so it announces a session that can't be
+// refreshed and leaves the sign-out itself to the auth context.
+export const SESSION_EXPIRED_EVENT = "session-expired";
+
 // A 401 from these means the credentials themselves were rejected; trying a
 // refresh would be pointless (or, for /auth/refresh, a loop).
 const NO_REFRESH_PATHS = ["/auth/login", "/auth/refresh", "/auth/logout"];
@@ -51,8 +55,13 @@ export async function apiFetch<T>(
     response.status === 401 &&
     localStorage.getItem(TOKEN_KEY) !== null &&
     !NO_REFRESH_PATHS.includes(path);
-  if (isExpiredSession && (await refreshAccessToken())) {
-    response = await send(path, options);
+  if (isExpiredSession) {
+    if (await refreshAccessToken()) {
+      response = await send(path, options);
+    } else {
+      localStorage.removeItem(TOKEN_KEY);
+      window.dispatchEvent(new Event(SESSION_EXPIRED_EVENT));
+    }
   }
 
   if (!response.ok) {
