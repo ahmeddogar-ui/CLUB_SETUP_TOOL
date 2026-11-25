@@ -1,7 +1,7 @@
 [project]
 name = "club-setup-tool"
 version = "0.1.0"
-description = "Add your description here"
+description = "Register student clubs and review their paperwork: FastAPI + React"
 readme = "README.md"
 authors = [
     { name = "ahmeddogar-ui", email = "azrael.dogar@gmail.com" }
@@ -19,9 +19,6 @@ dependencies = [
     "sqlalchemy>=2.0.52",
     "uvicorn>=0.52.4",
 ]
-
-[project.scripts]
-club-setup-tool = "club_setup_tool:main"
 
 [build-system]
 requires = ["uv_build>=0.12.5,<0.13.0"]

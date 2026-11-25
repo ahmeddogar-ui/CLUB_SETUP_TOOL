@@ -51,6 +51,10 @@ it yourself.
   SQLite would hide exactly the bugs we care about.
 - **Each test is rolled back.** `db` opens a transaction, and the app's own `commit()` calls
   only release a savepoint inside it. `test_harness.py` proves this keeps working.
+- **Don't assume an empty database.** An admin's club list includes every club in it, so
+  list tests compare only the clubs they created.
+- **Concurrency tests commit for real.** A lock only matters between separate transactions,
+  so `test_concurrency.py` uses its own sessions and empties every table afterwards.
 - **Two ways to get a club.** Use `create_club(client, user)` when you want the real API
   path. Use `make_club(db, owner, status=...)` to place a club directly in some state, so a
   test about approval doesn't have to walk through submit first.
@@ -90,7 +94,8 @@ it yourself.
 `.github/workflows/ci.yml` runs four jobs in parallel on every PR and on pushes to `main`:
 
 1. **Backend lint and types**: `ruff check`, `ruff format --check` and `mypy`.
-2. **Backend tests**: pytest with coverage against Postgres 16. Fails below 90% coverage.
+2. **Backend tests**: pytest with coverage against Postgres 16, failing below 90% coverage;
+   then `alembic check`, which fails if `app/models.py` and the migrations disagree.
 3. **Frontend**: Prettier check, lint, `tsc`, Vitest with coverage floors (set in
    `vite.config.ts`), production build.
 4. **End-to-end**: the Playwright journey. On failure, the HTML report and trace are

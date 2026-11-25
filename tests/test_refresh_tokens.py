@@ -1,4 +1,4 @@
-"""Refresh tokens: the edge-case checklist's "Refresh tokens" section."""
+"""Refresh tokens: issue on login, exchange, expiry and revocation on logout."""
 
 from datetime import UTC, datetime, timedelta
 

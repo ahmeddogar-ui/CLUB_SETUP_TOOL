@@ -1,6 +1,5 @@
-"""Ticket 26: auth edge cases from edge-case-checklist.md's Register/Login/
-Protected-routes sections. Wrong-role-vs-right-role on `require_role` itself is
-already covered by test_admin_route_guards.py (ticket 23) and isn't repeated here.
+"""Auth edge cases: register, login and protected routes. Wrong-role vs
+right-role on `require_role` itself is covered by test_admin_route_guards.py.
 """
 
 from datetime import UTC, datetime, timedelta
