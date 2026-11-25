@@ -2,6 +2,7 @@ from datetime import UTC, datetime
 
 from sqlalchemy.orm import Session
 
+from app.exceptions import Conflict
 from app.models import (
     ClubEvent,
     Clubs,
@@ -29,14 +30,6 @@ EVENT_TYPES: dict[tuple[str, str], str] = {
     ("under_review", "rejected"): "rejected",
     ("changes_requested", "submitted"): "resubmitted",
 }
-
-
-class InvalidTransition(Exception):
-    pass
-
-
-class TransitionBlocked(Exception):
-    pass
 
 
 def _event_for(from_status: str, to_status: str) -> str:
@@ -75,7 +68,7 @@ def _check_guards(
         missing = _submission_blockers(club, requirements)
 
         if missing:
-            raise TransitionBlocked(f"missing: {', '.join(missing)}")
+            raise Conflict(f"missing: {', '.join(missing)}")
 
     elif key == (ClubStatus.under_review, ClubStatus.approved):
         not_approved = [
@@ -85,16 +78,14 @@ def _check_guards(
         ]
 
         if not_approved:
-            raise TransitionBlocked(
-                f"requirements not all approved: {', '.join(not_approved)}"
-            )
+            raise Conflict(f"requirements not all approved: {', '.join(not_approved)}")
 
     elif key in (
         (ClubStatus.under_review, ClubStatus.changes_requested),
         (ClubStatus.under_review, ClubStatus.rejected),
     ):
         if not note or not note.strip():
-            raise TransitionBlocked("a note is required for this action")
+            raise Conflict("a note is required for this action")
 
 
 def attempt_transition(
@@ -108,10 +99,10 @@ def attempt_transition(
     key = (club.status, to_status)
 
     if key not in ALLOWED:
-        raise InvalidTransition(f"Cannot move {club.status} -> {to_status}")
+        raise Conflict(f"Cannot move {club.status} -> {to_status}")
 
     if actor.role != ALLOWED[key]:
-        raise InvalidTransition(f"{actor.role} may not perform this transition")
+        raise Conflict(f"{actor.role} may not perform this transition")
 
     _check_guards(db, club, to_status, note)
 
@@ -130,13 +121,9 @@ def attempt_transition(
         )
     )
 
-    # Status change and event row go out in one commit; if either write fails,
-    # roll both back so the club's status and its history can never disagree.
-    try:
-        db.commit()
-    except Exception:
-        db.rollback()
-        raise
+    # Status change and event row go out in one commit, so the club's status and
+    # its history can never disagree. A failed commit is rolled back by get_db.
+    db.commit()
 
     db.refresh(club)
     return club

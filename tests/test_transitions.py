@@ -4,6 +4,7 @@ import pytest
 from sqlalchemy import text
 from sqlalchemy.exc import DBAPIError, IntegrityError
 
+from app.exceptions import Conflict
 from app.models import (
     ClubEvent,
     Clubs,
@@ -12,7 +13,7 @@ from app.models import (
     User,
     UserRole,
 )
-from app.transitions import InvalidTransition, TransitionBlocked, attempt_transition
+from app.transitions import attempt_transition
 from tests.conftest import (
     approve_all_requirements,
     create_club,
@@ -169,7 +170,7 @@ def test_illegal_transitions_rejected_and_nothing_changes(
     before = len(transition_events(db, club.id))
 
     for actor in (lead, admin):
-        with pytest.raises(InvalidTransition):
+        with pytest.raises(Conflict):
             attempt_transition(db, club, to_status, actor, "note")
 
     db.expire_all()
@@ -181,7 +182,7 @@ def test_illegal_transitions_rejected_and_nothing_changes(
 
 
 def test_club_lead_cannot_start_review_on_own_club(db, submitted, lead):
-    with pytest.raises(InvalidTransition, match="club_lead may not"):
+    with pytest.raises(Conflict, match="club_lead may not"):
         attempt_transition(db, submitted, ClubStatus.under_review, lead)
 
 
@@ -197,14 +198,14 @@ def test_club_lead_cannot_perform_admin_decisions(
     db, under_review, lead, to_status, note
 ):
     approve_all_requirements(db, under_review.id)
-    with pytest.raises(InvalidTransition):
+    with pytest.raises(Conflict):
         attempt_transition(db, under_review, to_status, lead, note)
     assert load_club(db, under_review.id).status == ClubStatus.under_review
 
 
 def test_admin_cannot_submit_on_behalf_of_lead(db, draft, admin):
     provide_all_documents(db, draft.id)
-    with pytest.raises(InvalidTransition, match="admin may not"):
+    with pytest.raises(Conflict, match="admin may not"):
         attempt_transition(db, draft, ClubStatus.submitted, admin)
 
 
@@ -215,7 +216,7 @@ def test_submit_blocked_when_core_info_missing(db, draft, lead):
     provide_all_documents(db, draft.id)
     draft.description = "   "
     db.commit()
-    with pytest.raises(TransitionBlocked, match="description"):
+    with pytest.raises(Conflict, match="description"):
         attempt_transition(db, draft, ClubStatus.submitted, lead)
     assert load_club(db, draft.id).status == ClubStatus.drafting
 
@@ -227,7 +228,7 @@ def test_submit_blocked_when_document_missing_names_it(db, draft, lead):
     requirement.link_url = None
     db.commit()
 
-    with pytest.raises(TransitionBlocked) as exc:
+    with pytest.raises(Conflict) as exc:
         attempt_transition(db, draft, ClubStatus.submitted, lead)
     assert "constitution" in str(exc.value)
     assert "exec_list" not in str(exc.value)
@@ -237,7 +238,7 @@ def test_submit_blocked_when_document_rejected(db, draft, lead):
     provide_all_documents(db, draft.id)
     requirements_for(db, draft.id)["budget"].status = RequirementStatus.rejected
     db.commit()
-    with pytest.raises(TransitionBlocked, match="budget"):
+    with pytest.raises(Conflict, match="budget"):
         attempt_transition(db, draft, ClubStatus.submitted, lead)
 
 
@@ -270,7 +271,7 @@ def test_approve_blocked_by_any_unapproved_requirement(
     requirements_for(db, under_review.id)[requirement_type].status = status
     db.commit()
 
-    with pytest.raises(TransitionBlocked) as exc:
+    with pytest.raises(Conflict) as exc:
         attempt_transition(db, under_review, ClubStatus.approved, admin)
     assert requirement_type in str(exc.value)
     assert load_club(db, under_review.id).status == ClubStatus.under_review
@@ -284,7 +285,7 @@ def test_approve_blocked_by_any_unapproved_requirement(
 )
 @pytest.mark.parametrize("note", [None, "", "   ", "\n\t"])
 def test_note_required(db, under_review, admin, to_status, note):
-    with pytest.raises(TransitionBlocked, match="note is required"):
+    with pytest.raises(Conflict, match="note is required"):
         attempt_transition(db, under_review, to_status, admin, note)
     assert load_club(db, under_review.id).status == ClubStatus.under_review
 
@@ -299,6 +300,7 @@ def test_failed_event_write_rolls_back_status_change(db, submitted):
 
     with pytest.raises(IntegrityError):
         attempt_transition(db, submitted, ClubStatus.under_review, ghost_admin)
+    db.rollback()  # what get_db does when a request raises
 
     db.expire_all()
     assert load_club(db, submitted.id).status == ClubStatus.submitted

@@ -1,6 +1,5 @@
 from datetime import UTC, datetime, timedelta
 
-from fastapi import HTTPException, status
 from psycopg2.errors import UniqueViolation
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -13,6 +12,7 @@ from app.core.security import (
     new_refresh_token,
     verify_password,
 )
+from app.exceptions import Conflict, Unauthorized
 from app.models import RefreshToken, User, UserRole
 
 UNIQUE_EMAIL_CONSTRAINT = "uq_users_email"
@@ -43,9 +43,7 @@ def register_user(db: Session, name: str, email: str, password: str) -> User:
             and error.orig.diag.constraint_name == UNIQUE_EMAIL_CONSTRAINT
         )
         if is_duplicate_email:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT, detail="User already exists"
-            ) from error
+            raise Conflict("User already exists") from error
         raise
     db.refresh(user)
     return user
@@ -54,16 +52,12 @@ def register_user(db: Session, name: str, email: str, password: str) -> User:
 def _verify_credentials(db: Session, email: str, password: str) -> User:
     user = db.query(User).filter(User.email == normalize_email(email)).first()
     if not user or not verify_password(password, user.password_hash):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect email or password",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+        raise Unauthorized("Incorrect email or password")
     return user
 
 
 def log_in(db: Session, email: str, password: str) -> tuple[str, str]:
-    """Returns (access token, refresh token), or raises 401."""
+    """Returns (access token, refresh token), or raises Unauthorized."""
     user = _verify_credentials(db, email, password)
     refresh_token = new_refresh_token()
     db.add(
@@ -88,17 +82,14 @@ def _find_refresh_token(db: Session, refresh_token: str) -> RefreshToken | None:
 
 def refresh_access_token(db: Session, refresh_token: str) -> str:
     """Returns a new access token for a known, unexpired, unrevoked refresh
-    token, or raises 401."""
+    token, or raises Unauthorized."""
     stored = _find_refresh_token(db, refresh_token)
     if (
         stored is None
         or stored.revoked_at is not None
         or stored.expires_at <= datetime.now(UTC)
     ):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid refresh token",
-        )
+        raise Unauthorized("Invalid refresh token")
     return create_access_token(stored.user_id)
 
 

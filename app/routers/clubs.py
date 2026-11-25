@@ -14,8 +14,7 @@ from app.schemas import (
     ClubUpdateRequest,
     NoteRequest,
 )
-from app.services.clubs import (  # noqa: F401  (INITIAL_REQUIREMENTS re-exported for tests)
-    INITIAL_REQUIREMENTS,
+from app.services.clubs import (
     ClubSort,
     create_club_for_user,
     get_club_for_user,

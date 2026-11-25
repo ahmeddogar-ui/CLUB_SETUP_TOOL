@@ -1,8 +1,8 @@
 from enum import Enum
 
-from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
+from app.exceptions import Conflict, Forbidden, NotFound
 from app.models import (
     ClubEvent,
     Clubs,
@@ -14,7 +14,7 @@ from app.models import (
     User,
     UserRole,
 )
-from app.transitions import InvalidTransition, TransitionBlocked, attempt_transition
+from app.transitions import attempt_transition
 
 EDITABLE_STATUSES = (ClubStatus.drafting, ClubStatus.changes_requested)
 
@@ -37,10 +37,7 @@ def create_club_for_user(db: Session, user: User, name: str, description: str) -
     # Only a club lead can ever submit a club, so a club created by anyone else
     # could never leave drafting.
     if user.role != UserRole.club_lead:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only club leads can create clubs",
-        )
+        raise Forbidden("Only club leads can create clubs")
     club = Clubs(
         name=name,
         description=description,
@@ -105,25 +102,19 @@ def list_clubs_for_user(
 def get_club_or_404(db: Session, club_id: int) -> Clubs:
     club = db.query(Clubs).filter(Clubs.id == club_id).first()
     if not club:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Club not found"
-        )
+        raise NotFound("Club not found")
     return club
 
 
 def ensure_owner_or_admin(club: Clubs, user: User) -> None:
     if user.role != UserRole.admin and club.submitter_id != user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail="Not your club"
-        )
+        raise Forbidden("Not your club")
 
 
 def ensure_owner(club: Clubs, user: User) -> None:
     """For changes to a club's content: admins review clubs but never edit them."""
     if club.submitter_id != user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail="Not your club"
-        )
+        raise Forbidden("Not your club")
 
 
 def get_club_for_user(db: Session, club_id: int, user: User) -> Clubs:
@@ -145,10 +136,7 @@ def update_club_for_user(
     ensure_owner(club, user)
 
     if club.status not in EDITABLE_STATUSES:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Cannot edit a club that has already been submitted",
-        )
+        raise Conflict("Cannot edit a club that has already been submitted")
 
     if name is not None:
         club.name = name
@@ -160,32 +148,16 @@ def update_club_for_user(
     return club
 
 
-def transition_club(
-    db: Session,
-    club: Clubs,
-    to_status: ClubStatus,
-    actor: User,
-    note: str | None = None,
-) -> Clubs:
-    try:
-        return attempt_transition(db, club, to_status, actor, note)
-    except (InvalidTransition, TransitionBlocked) as e:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
-
-
 def submit_club_for_user(db: Session, club_id: int, user: User) -> Clubs:
     club = get_club_for_user(db, club_id, user)
-    return transition_club(db, club, ClubStatus.submitted, user)
+    return attempt_transition(db, club, ClubStatus.submitted, user)
 
 
 def resubmit_club_for_user(db: Session, club_id: int, user: User) -> Clubs:
     club = get_club_for_user(db, club_id, user)
     if club.status != ClubStatus.changes_requested:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=f"Cannot resubmit a club in status {club.status.value}",
-        )
-    return transition_club(db, club, ClubStatus.submitted, user)
+        raise Conflict(f"Cannot resubmit a club in status {club.status.value}")
+    return attempt_transition(db, club, ClubStatus.submitted, user)
 
 
 def review_club(
@@ -197,7 +169,7 @@ def review_club(
 ) -> Clubs:
     """Admin-side transition (start-review / request-changes / approve / reject)."""
     club = get_club_or_404(db, club_id)
-    return transition_club(db, club, to_status, admin, note)
+    return attempt_transition(db, club, to_status, admin, note)
 
 
 def list_club_events(db: Session, club_id: int) -> list[tuple[ClubEvent, str]]:

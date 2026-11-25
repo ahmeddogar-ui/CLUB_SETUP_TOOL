@@ -64,7 +64,7 @@ from app.models import (  # noqa: E402
     User,
     UserRole,
 )
-from app.routers.clubs import INITIAL_REQUIREMENTS  # noqa: E402
+from app.services.clubs import INITIAL_REQUIREMENTS  # noqa: E402
 
 
 @pytest.fixture(scope="session")

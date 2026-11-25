@@ -1,6 +1,6 @@
-from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
+from app.exceptions import Conflict, NotFound
 from app.models import (
     ClubEvent,
     Clubs,
@@ -27,9 +27,7 @@ def get_requirement_or_404(
         .first()
     )
     if not requirement:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Requirement not found"
-        )
+        raise NotFound("Requirement not found")
     return requirement
 
 
@@ -38,9 +36,8 @@ def _get_reviewable_requirement(
 ) -> tuple[Clubs, Requirement]:
     club = get_club_or_404(db, club_id)
     if club.status != ClubStatus.under_review:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Requirements can only be reviewed while the club is under_review",
+        raise Conflict(
+            "Requirements can only be reviewed while the club is under_review"
         )
     return club, get_requirement_or_404(db, club_id, requirement_type)
 
@@ -81,18 +78,14 @@ def set_requirement_link(
     ensure_owner(club, user)
 
     if club.status not in EDITABLE_STATUSES:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Cannot change documents on a club that has already been submitted",
+        raise Conflict(
+            "Cannot change documents on a club that has already been submitted"
         )
 
     requirement = get_requirement_or_404(db, club_id, requirement_type)
 
     if requirement.kind != RequirementKind.document:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=f"{requirement_type.value} is a checklist item and has no link",
-        )
+        raise Conflict(f"{requirement_type.value} is a checklist item and has no link")
 
     requirement.link_url = link_url
     requirement.status = RequirementStatus.submitted
@@ -121,18 +114,14 @@ def approve_requirement(
     club, requirement = _get_reviewable_requirement(db, club_id, requirement_type)
 
     if requirement.status == RequirementStatus.approved:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=f"{requirement_type.value} is already approved",
-        )
+        raise Conflict(f"{requirement_type.value} is already approved")
 
     if (
         requirement.kind == RequirementKind.document
         and requirement.status != RequirementStatus.submitted
     ):
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=f"{requirement_type.value} has no newly provided document to approve",
+        raise Conflict(
+            f"{requirement_type.value} has no newly provided document to approve"
         )
 
     requirement.status = RequirementStatus.approved
