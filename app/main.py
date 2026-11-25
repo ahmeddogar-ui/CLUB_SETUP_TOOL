@@ -1,6 +1,7 @@
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
+from sqlalchemy.exc import OperationalError
 
 from app.database import DbSession
 from app.exceptions import Conflict, DomainError, Forbidden, NotFound, Unauthorized
@@ -28,16 +29,18 @@ def handle_domain_error(request: Request, error: DomainError) -> JSONResponse:
     )
 
 
-# need to add logic that lets the admin reviewer log in - ie he will have a given email and if he logs in with the email his user role is admin
 @app.get("/health")
-async def root():
-    return {"message": "Hello World"}
+def health() -> dict[str, str]:
+    return {"status": "ok"}
 
 
 @app.get("/dbhealth")
-async def db_health(db: DbSession):
-    db.execute(text("SELECT 1"))
-    return {"db": "ok"}
+def db_health(db: DbSession) -> JSONResponse:
+    try:
+        db.execute(text("SELECT 1"))
+    except OperationalError:
+        return JSONResponse(status_code=503, content={"status": "unavailable"})
+    return JSONResponse(content={"status": "ok"})
 
 
 app.include_router(clubs_router)

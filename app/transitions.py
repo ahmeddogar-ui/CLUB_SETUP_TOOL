@@ -2,7 +2,7 @@ from datetime import UTC, datetime
 
 from sqlalchemy.orm import Session
 
-from app.exceptions import Conflict
+from app.exceptions import Conflict, Forbidden
 from app.models import (
     ClubEvent,
     Clubs,
@@ -99,10 +99,10 @@ def attempt_transition(
     key = (club.status, to_status)
 
     if key not in ALLOWED:
-        raise Conflict(f"Cannot move {club.status} -> {to_status}")
+        raise Conflict(f"Cannot move {club.status.value} -> {to_status.value}")
 
     if actor.role != ALLOWED[key]:
-        raise Conflict(f"{actor.role} may not perform this transition")
+        raise Forbidden(f"{actor.role.value} may not perform this transition")
 
     _check_guards(db, club, to_status, note)
 

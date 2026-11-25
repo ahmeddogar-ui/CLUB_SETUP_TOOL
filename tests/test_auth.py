@@ -164,6 +164,13 @@ def test_tampered_token_is_401(client, lead):
     assert response.status_code == 401
 
 
+def test_token_with_non_numeric_subject_is_401(client):
+    payload = {"sub": "abc", "exp": datetime.now(UTC) + timedelta(minutes=5)}
+    token = jwt.encode(payload, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
+    response = client.get("/auth/me", headers={"Authorization": f"Bearer {token}"})
+    assert response.status_code == 401
+
+
 def test_expired_token_is_401(client, lead):
     response = client.get(
         "/auth/me", headers={"Authorization": f"Bearer {expired_token(lead.id)}"}

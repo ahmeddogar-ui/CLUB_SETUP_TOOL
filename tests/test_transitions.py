@@ -4,7 +4,7 @@ import pytest
 from sqlalchemy import text
 from sqlalchemy.exc import DBAPIError, IntegrityError
 
-from app.exceptions import Conflict
+from app.exceptions import Conflict, Forbidden
 from app.models import (
     ClubEvent,
     Clubs,
@@ -182,7 +182,7 @@ def test_illegal_transitions_rejected_and_nothing_changes(
 
 
 def test_club_lead_cannot_start_review_on_own_club(db, submitted, lead):
-    with pytest.raises(Conflict, match="club_lead may not"):
+    with pytest.raises(Forbidden, match="^club_lead may not perform this transition$"):
         attempt_transition(db, submitted, ClubStatus.under_review, lead)
 
 
@@ -198,15 +198,20 @@ def test_club_lead_cannot_perform_admin_decisions(
     db, under_review, lead, to_status, note
 ):
     approve_all_requirements(db, under_review.id)
-    with pytest.raises(Conflict):
+    with pytest.raises(Forbidden):
         attempt_transition(db, under_review, to_status, lead, note)
     assert load_club(db, under_review.id).status == ClubStatus.under_review
 
 
 def test_admin_cannot_submit_on_behalf_of_lead(db, draft, admin):
     provide_all_documents(db, draft.id)
-    with pytest.raises(Conflict, match="admin may not"):
+    with pytest.raises(Forbidden, match="^admin may not perform this transition$"):
         attempt_transition(db, draft, ClubStatus.submitted, admin)
+
+
+def test_illegal_move_message_uses_plain_status_names(db, draft, admin):
+    with pytest.raises(Conflict, match="^Cannot move drafting -> approved$"):
+        attempt_transition(db, draft, ClubStatus.approved, admin)
 
 
 # --- submit guard ----------------------------------------------------------

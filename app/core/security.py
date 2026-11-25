@@ -54,13 +54,12 @@ def get_current_user(
     )
     try:
         payload = decode_access_token(token)
-        user_id = payload.get("sub")
-        if user_id is None:
-            raise credentials_exception
-    except jwt.InvalidTokenError:
+        user_id = int(payload["sub"])
+    except (jwt.InvalidTokenError, KeyError, ValueError):
+        # Bad signature, expired, no subject, or a subject that isn't a user id.
         raise credentials_exception
 
-    user = db.query(User).filter(User.id == int(user_id)).first()
+    user = db.query(User).filter(User.id == user_id).first()
     if user is None:
         raise credentials_exception
     return user

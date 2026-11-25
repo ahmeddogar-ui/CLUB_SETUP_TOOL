@@ -268,3 +268,11 @@ def test_resubmit_still_runs_submit_guard(client, db, changes_requested, lead):
     response = post(client, changes_requested["id"], "resubmit", lead)
     assert response.status_code == 409
     assert "budget" in response.json()["detail"]
+
+
+def test_admin_submitting_a_lead_s_club_is_403(client, db, draft, admin):
+    provide_all_documents(db, draft["id"])
+    response = post(client, draft["id"], "submit", admin)
+    assert response.status_code == 403
+    assert response.json()["detail"] == "admin may not perform this transition"
+    assert event_count(db, draft["id"]) == 1  # only "created"
