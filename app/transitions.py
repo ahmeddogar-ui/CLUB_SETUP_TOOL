@@ -43,10 +43,9 @@ def _event_for(from_status: str, to_status: str) -> str:
     return EVENT_TYPES[(from_status, to_status)]
 
 
-def submission_blockers(club: Clubs, requirements: list[Requirement]) -> list[str]:
+def _submission_blockers(club: Clubs, requirements: list[Requirement]) -> list[str]:
     """What still stands between this club and submit. Checklist-kind items are
-    deliberately not checked here -- an admin verifies those after submission.
-    Used by the submit guard and by the club page's "what's blocking you" list."""
+    deliberately not checked here -- an admin verifies those after submission."""
     missing = [
         field
         for field in ("name", "description")
@@ -73,7 +72,7 @@ def _check_guards(
         (ClubStatus.drafting, ClubStatus.submitted),
         (ClubStatus.changes_requested, ClubStatus.submitted),
     ):
-        missing = submission_blockers(club, requirements)
+        missing = _submission_blockers(club, requirements)
 
         if missing:
             raise TransitionBlocked(f"missing: {', '.join(missing)}")

@@ -51,8 +51,7 @@ def register_user(db: Session, name: str, email: str, password: str) -> User:
     return user
 
 
-def verify_credentials(db: Session, email: str, password: str) -> User:
-    """Returns the user, or raises 401."""
+def _verify_credentials(db: Session, email: str, password: str) -> User:
     user = db.query(User).filter(User.email == normalize_email(email)).first()
     if not user or not verify_password(password, user.password_hash):
         raise HTTPException(
@@ -65,7 +64,7 @@ def verify_credentials(db: Session, email: str, password: str) -> User:
 
 def log_in(db: Session, email: str, password: str) -> tuple[str, str]:
     """Returns (access token, refresh token), or raises 401."""
-    user = verify_credentials(db, email, password)
+    user = _verify_credentials(db, email, password)
     refresh_token = new_refresh_token()
     db.add(
         RefreshToken(
