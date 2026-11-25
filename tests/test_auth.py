@@ -15,7 +15,7 @@ from app.services.auth import make_admin
 from tests.conftest import auth
 
 
-def register(client, name="Ada", email="ada@example.com", password="hunter2"):
+def register(client, name="Ada", email="ada@example.com", password="hunter2-hunter2"):
     return client.post(
         "/auth/register", json={"name": name, "email": email, "password": password}
     )
@@ -74,9 +74,9 @@ def test_register_hashes_password_and_defaults_role(client, db):
 
 
 def test_login_correct_credentials_returns_bearer_token(client):
-    register(client, email="ada@example.com", password="hunter2")
+    register(client, email="ada@example.com", password="hunter2-hunter2")
 
-    response = login(client, "ada@example.com", "hunter2")
+    response = login(client, "ada@example.com", "hunter2-hunter2")
 
     assert response.status_code == 200
     assert response.json() == {
@@ -87,7 +87,7 @@ def test_login_correct_credentials_returns_bearer_token(client):
 
 
 def test_login_wrong_password_is_401_generic(client):
-    register(client, email="ada@example.com", password="hunter2")
+    register(client, email="ada@example.com", password="hunter2-hunter2")
 
     response = login(client, "ada@example.com", "wrong-password")
 
@@ -104,11 +104,11 @@ def test_login_nonexistent_email_is_same_generic_401(client):
 
 
 def test_email_is_case_insensitive_for_login(client, db):
-    register(client, email="Ada@Example.com", password="hunter2")
+    register(client, email="Ada@Example.com", password="hunter2-hunter2")
 
     assert db.query(User).filter(User.email == "ada@example.com").count() == 1
     for email in ("Ada@Example.com", "ada@example.com", "ADA@EXAMPLE.COM"):
-        assert login(client, email, "hunter2").status_code == 200, email
+        assert login(client, email, "hunter2-hunter2").status_code == 200, email
 
 
 def test_register_same_email_in_different_case_is_409(client, db):
