@@ -6,86 +6,34 @@ import {
   type ReactNode,
 } from "react";
 
-type ThemeMode = "light" | "dark" | "auto";
-type ResolvedTheme = "light" | "dark";
+type Theme = "light" | "dark";
+
+const THEME_KEY = "theme";
 
 type ThemeContextType = {
-  theme: ResolvedTheme; // Resolved theme actually active ("light" or "dark")
-  themeMode: ThemeMode; // The configured preference ("light", "dark", or "auto")
-  setThemeMode: (mode: ThemeMode) => void;
+  theme: Theme;
   toggleTheme: () => void;
 };
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
+const readSavedTheme = (): Theme =>
+  localStorage.getItem(THEME_KEY) === "dark" ? "dark" : "light";
+
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [themeMode, setThemeModeState] = useState<ThemeMode>("light");
-  const [theme, setTheme] = useState<ResolvedTheme>("light");
-  const [isInitialized, setIsInitialized] = useState(false);
+  const [theme, setTheme] = useState<Theme>(readSavedTheme);
 
   useEffect(() => {
-    const savedMode = localStorage.getItem("theme-mode") as ThemeMode | null;
-    const legacySavedTheme = localStorage.getItem(
-      "theme",
-    ) as ResolvedTheme | null;
-    const initialMode = savedMode || (legacySavedTheme as ThemeMode) || "light";
+    localStorage.setItem(THEME_KEY, theme);
+    // Tailwind's dark: variant is keyed on this class (see index.css).
+    document.documentElement.classList.toggle("dark", theme === "dark");
+  }, [theme]);
 
-    setThemeModeState(initialMode);
-    setIsInitialized(true);
-  }, []);
-
-  useEffect(() => {
-    if (!isInitialized) return;
-
-    localStorage.setItem("theme-mode", themeMode);
-
-    if (themeMode === "auto") {
-      const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
-
-      const handleChange = () => {
-        const resolved = mediaQuery.matches ? "dark" : "light";
-        setTheme(resolved);
-      };
-
-      handleChange();
-
-      mediaQuery.addEventListener("change", handleChange);
-      return () => {
-        mediaQuery.removeEventListener("change", handleChange);
-      };
-    } else {
-      setTheme(themeMode as ResolvedTheme);
-    }
-  }, [themeMode, isInitialized]);
-
-  useEffect(() => {
-    if (isInitialized) {
-      localStorage.setItem("theme", theme);
-      if (theme === "dark") {
-        document.documentElement.classList.add("dark");
-        document.documentElement.setAttribute("data-color-scheme", "dark");
-      } else {
-        document.documentElement.classList.remove("dark");
-        document.documentElement.setAttribute("data-color-scheme", "light");
-      }
-    }
-  }, [theme, isInitialized]);
-
-  const setThemeMode = (mode: ThemeMode) => {
-    setThemeModeState(mode);
-  };
-
-  const toggleTheme = () => {
-    setThemeModeState(() => {
-      const currentResolved = theme;
-      return currentResolved === "light" ? "dark" : "light";
-    });
-  };
+  const toggleTheme = () =>
+    setTheme((current) => (current === "light" ? "dark" : "light"));
 
   return (
-    <ThemeContext.Provider
-      value={{ theme, themeMode, setThemeMode, toggleTheme }}
-    >
+    <ThemeContext.Provider value={{ theme, toggleTheme }}>
       {children}
     </ThemeContext.Provider>
   );

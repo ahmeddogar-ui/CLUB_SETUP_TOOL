@@ -31,7 +31,7 @@ export default function AppHeader() {
             {openMobile ? (
               <XIcon className="size-6" />
             ) : (
-              <MenuTwoIcon className="size-auto! rtl:-scale-x-100" />
+              <MenuTwoIcon className="size-auto!" />
             )}
           </Button>
 
