@@ -107,9 +107,8 @@ def get_club(db: Session, club_id: int) -> Clubs:
 
 
 def get_club_for_update(db: Session, club_id: int) -> Clubs:
-    """Loads the club and locks its row until the transaction ends. Every write
-    to a club or its requirements starts here, so two requests on one club run
-    one after the other and each one's checks see the other's committed result.
+    """Locks the club row until commit; every write to a club or its
+    requirements starts here, so writes to one club run one at a time.
     populate_existing() replaces any stale copy this session already holds."""
     club = (
         db.query(Clubs)
