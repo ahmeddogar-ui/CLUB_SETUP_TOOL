@@ -1,4 +1,5 @@
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import {
   Table,
@@ -23,6 +24,20 @@ export interface EmptyState {
   title: string;
   description: string;
   action: ReactNode;
+}
+
+/** Shown when the page in the URL is past the end of the list, e.g. after
+ * the last club on it was reviewed, or from an old link. */
+export function pastLastPage(goToFirstPage: () => void): EmptyState {
+  return {
+    title: "No clubs on this page",
+    description: "The list is shorter than this page now.",
+    action: (
+      <Button size="sm" variant="outline" onClick={goToFirstPage}>
+        Go to the first page
+      </Button>
+    ),
+  };
 }
 
 interface ClubsTableProps {

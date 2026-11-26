@@ -1,3 +1,5 @@
+from datetime import UTC, datetime
+
 from sqlalchemy.orm import Session
 
 from app.exceptions import Conflict, NotFound
@@ -90,6 +92,10 @@ def set_requirement_link(
     requirement.link_url = link_url
     requirement.status = RequirementStatus.submitted
     requirement.reviewer_note = None
+    # A new document is a change to the club, so its "last updated" moves too.
+    # Only possible while drafting or after changes were requested, so it never
+    # resets how long a club has waited in the review queue.
+    club.updated_at = datetime.now(UTC)
     _record_requirement_event(
         db,
         club,

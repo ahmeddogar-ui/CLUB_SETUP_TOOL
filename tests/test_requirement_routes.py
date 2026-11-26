@@ -1,8 +1,10 @@
 """Ticket 22: set a requirement's link, approve it, reject it."""
 
+from datetime import UTC, datetime
+
 import pytest
 
-from app.models import ClubEvent, ClubStatus, RequirementStatus
+from app.models import ClubEvent, Clubs, ClubStatus, RequirementStatus
 from tests.conftest import auth, create_club, provide_all_documents, requirements_for
 
 DOCUMENTS = ("constitution", "exec_list", "budget", "advisor_form")
@@ -356,3 +358,14 @@ def test_refused_actions_write_no_history(
     assert [r.status_code for r in responses] == [409, 403, 409, 403, 422, 409]
     assert requirement_events(db, drafting["id"]) == []
     assert requirement_events(db, under_review["id"]) == []
+
+
+def test_providing_a_document_counts_as_updating_the_club(client, db, draft, lead):
+    club = db.get_one(Clubs, draft["id"])
+    club.updated_at = datetime(2026, 1, 1, tzinfo=UTC)
+    db.commit()
+
+    set_link(client, draft["id"], "budget", lead)
+
+    db.refresh(club)
+    assert club.updated_at > datetime(2026, 1, 1, tzinfo=UTC)

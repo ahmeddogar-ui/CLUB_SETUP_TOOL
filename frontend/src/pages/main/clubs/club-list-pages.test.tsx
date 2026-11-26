@@ -87,7 +87,7 @@ describe("club list", () => {
     const { user } = renderApp("/", { signedInAs: LEAD });
 
     expect(await screen.findByText("1–20 of 25")).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Next page" }));
+    await user.click(screen.getByRole("button", { name: "Next" }));
 
     expect(
       await screen.findByRole("link", { name: "Second page club" }),
@@ -162,7 +162,7 @@ describe("all clubs (admin)", () => {
     );
     const { user } = renderApp("/", { signedInAs: ADMIN });
 
-    await user.click(await screen.findByRole("button", { name: "Next page" }));
+    await user.click(await screen.findByRole("button", { name: "Next" }));
     await user.click(screen.getByRole("button", { name: "Under review" }));
 
     const last = queries.at(-1);
@@ -234,6 +234,31 @@ describe("review queue", () => {
     expect(query?.get("sort")).toBe("oldest");
     expect(screen.getByText("3 days")).toBeInTheDocument();
     expect(screen.getByText("Less than a day")).toBeInTheDocument();
+  });
+
+  it("offers the first page when a later page has emptied", async () => {
+    const offsets: (string | null)[] = [];
+    server.use(
+      http.get("/api/clubs", ({ request }) => {
+        const offset = new URL(request.url).searchParams.get("offset");
+        offsets.push(offset);
+        const items = offset === "0" ? [buildClubListItem()] : [];
+        return HttpResponse.json(buildClubPage(items, { total: 5 }));
+      }),
+    );
+    const { user } = renderApp("/review?page=2", { signedInAs: ADMIN });
+
+    expect(
+      await screen.findByText("No clubs on this page"),
+    ).toBeInTheDocument();
+    await user.click(
+      screen.getByRole("button", { name: "Go to the first page" }),
+    );
+
+    expect(
+      await screen.findByRole("link", { name: "Chess Club" }),
+    ).toBeInTheDocument();
+    expect(offsets).toEqual(["20", "0"]);
   });
 
   it("points to all clubs when nothing is waiting", async () => {

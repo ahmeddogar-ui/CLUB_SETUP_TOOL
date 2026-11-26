@@ -10,7 +10,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link, useSearchParams } from "react-router";
 import { ClubFilters } from "./club-filters";
 import { CLUBS_PAGE_SIZE, clubPageQuery, readPage } from "./club-page-query";
-import { ClubsTable, type EmptyState } from "./clubs-table";
+import { ClubsTable, type EmptyState, pastLastPage } from "./clubs-table";
 import { Pager } from "./pager";
 import { StatusSummary } from "./status-summary";
 
@@ -126,14 +126,7 @@ function chooseEmptyState({
   firstPage: () => void;
   refresh: () => void;
 }): EmptyState {
-  if (data && data.total > 0) {
-    // Only reachable through an old link to a page that no longer exists.
-    return {
-      title: "No clubs on this page",
-      description: "The list is shorter than this page.",
-      action: <ActionButton label="Go to the first page" onClick={firstPage} />,
-    };
-  }
+  if (data && data.total > 0) return pastLastPage(firstPage);
   if (isFiltered) {
     return {
       title: "No clubs match",

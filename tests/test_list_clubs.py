@@ -17,9 +17,9 @@ def set_state(db, club_id, status, days_ago):
     db.commit()
 
 
-def list_clubs(client, user, params=None):
-    """The clubs on the first page, large enough for every test here."""
-    params = [*(params.items() if isinstance(params, dict) else params or [])]
+def list_clubs(client, user, params=()):
+    """The clubs on the first page, large enough for every test here. `params`
+    is a list of (name, value) pairs, so status can repeat."""
     response = client.get(
         "/api/clubs", params=[*params, ("limit", 100)], headers=auth(user)
     )
@@ -93,7 +93,7 @@ def test_requires_auth(client):
 
 
 def test_admin_queue_submitted_oldest_first(client, admin, clubs):
-    result = list_clubs(client, admin, {"status": "submitted", "sort": "oldest"})
+    result = list_clubs(client, admin, [("status", "submitted"), ("sort", "oldest")])
     # c (7 days) -> e (5 days) -> a (2 days); id order would have been a, c, e.
     assert ids_of_ours(result, clubs) == [clubs["c"], clubs["e"], clubs["a"]]
     assert {club["status"] for club in result} == {"submitted"}
@@ -114,18 +114,18 @@ def test_admin_queue_submitted_and_under_review(client, admin, clubs):
 
 
 def test_status_filter_without_sort_keeps_default_order(client, admin, clubs):
-    result = list_clubs(client, admin, {"status": "submitted"})
+    result = list_clubs(client, admin, [("status", "submitted")])
     assert ids_of_ours(result, clubs) == [clubs["a"], clubs["c"], clubs["e"]]
 
 
 def test_sort_without_status_filter(client, admin, clubs):
-    result = list_clubs(client, admin, {"sort": "oldest"})
+    result = list_clubs(client, admin, [("sort", "oldest")])
     # b (9 days) -> c (7) -> e (5) -> d (4) -> a (2)
     assert ids_of_ours(result, clubs) == [clubs[k] for k in "bceda"]
 
 
 def test_sort_newest_is_reverse_of_oldest(client, admin, clubs):
-    result = list_clubs(client, admin, {"sort": "newest"})
+    result = list_clubs(client, admin, [("sort", "newest")])
     # a (2 days) -> d (4) -> e (5) -> c (7) -> b (9)
     assert ids_of_ours(result, clubs) == [clubs[k] for k in "adecb"]
 
@@ -142,7 +142,7 @@ def test_admin_recently_decided_view(client, db, admin, clubs):
 
 
 def test_club_lead_newest_still_scoped_to_own_clubs(client, lead, clubs):
-    assert ids(list_clubs(client, lead, {"sort": "newest"})) == [
+    assert ids(list_clubs(client, lead, [("sort", "newest")])) == [
         clubs["a"],
         clubs["e"],
         clubs["b"],
@@ -150,15 +150,15 @@ def test_club_lead_newest_still_scoped_to_own_clubs(client, lead, clubs):
 
 
 def test_filter_works_for_any_status(client, admin, clubs):
-    drafting = list_clubs(client, admin, {"status": "drafting"})
+    drafting = list_clubs(client, admin, [("status", "drafting")])
     assert ids_of_ours(drafting, clubs) == [clubs["b"]]
-    approved = list_clubs(client, admin, {"status": "approved"})
+    approved = list_clubs(client, admin, [("status", "approved")])
     assert ids_of_ours(approved, clubs) == []
 
 
 def test_club_lead_filter_still_scoped_to_own_clubs(client, lead, other_lead, clubs):
     # c is the oldest submitted club overall, but it belongs to other_lead.
-    params = {"status": "submitted", "sort": "oldest"}
+    params = [("status", "submitted"), ("sort", "oldest")]
     assert ids(list_clubs(client, lead, params)) == [clubs["e"], clubs["a"]]
     assert ids(list_clubs(client, other_lead, params)) == [clubs["c"]]
 
@@ -166,11 +166,11 @@ def test_club_lead_filter_still_scoped_to_own_clubs(client, lead, other_lead, cl
 @pytest.mark.parametrize(
     "params",
     [
-        {"status": "pending_forever"},
-        {"status": "SUBMITTED"},
-        {"status": ""},
-        {"sort": "sideways"},
-        {"sort": "NEWEST"},
+        [("status", "pending_forever")],
+        [("status", "SUBMITTED")],
+        [("status", "")],
+        [("sort", "sideways")],
+        [("sort", "NEWEST")],
     ],
 )
 def test_invalid_values_rejected_with_422(client, admin, clubs, params):

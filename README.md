@@ -34,12 +34,13 @@ uv run python -m app.cli seed-demo
 cd frontend && npm ci
 ```
 
-`seed-demo` creates two demo accounts (password `demo-password` for both):
+`seed-demo` creates an admin, four club leads and sixteen clubs across every
+status. Sign in with either of these (password `demo-password`):
 
 | Email | Role | Has |
 | --- | --- | --- |
-| `demo-admin@example.com` | admin | One club waiting in the review queue |
-| `demo-lead@example.com` | club lead | Three clubs: drafting, submitted, approved |
+| `demo-admin@example.com` | admin | Every club; six waiting in the review queue |
+| `demo-lead@example.com` | club lead | Five clubs, each in a different status |
 
 To make any registered user an admin: `uv run python -m app.cli make-admin their@email.com`.
 
@@ -126,5 +127,5 @@ Deliberate simplifications for v1, each worth revisiting before real use:
 - **Access token in `localStorage`.** Any XSS bug could read it. It expires
   after 30 minutes, and the long-lived refresh token is in an httpOnly cookie
   that scripts can't read. An access token can't be revoked before it expires.
-- **No list pagination.** The club list and review queue return every
-  matching club; fine for a few hundred clubs.
+- **Simple search.** Club search is a substring match (`ILIKE`), which scans
+  the table; fine for thousands of clubs. Beyond that, add a trigram index.

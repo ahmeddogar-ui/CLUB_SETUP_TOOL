@@ -5,7 +5,7 @@ import { Card, CardTitle } from "@/components/ui/card";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useSearchParams } from "react-router";
 import { CLUBS_PAGE_SIZE, clubPageQuery, readPage } from "./club-page-query";
-import { ClubsTable } from "./clubs-table";
+import { ClubsTable, type EmptyState, pastLastPage } from "./clubs-table";
 import { Pager } from "./pager";
 
 export default function ReviewQueuePage() {
@@ -20,6 +20,27 @@ export default function ReviewQueuePage() {
       page,
     }),
   );
+
+  const showPage = (nextPage: number) =>
+    setSearchParams({ page: String(nextPage) });
+
+  const emptyState: EmptyState =
+    queue.data && queue.data.total > 0
+      ? pastLastPage(() => showPage(1))
+      : {
+          title: "Nothing waiting for review",
+          description: "Clubs appear here as soon as their leads submit them.",
+          action: (
+            <Button
+              size="sm"
+              variant="outline"
+              nativeButton={false}
+              render={<Link to="/" />}
+            >
+              View all clubs
+            </Button>
+          ),
+        };
 
   return (
     <div>
@@ -46,29 +67,13 @@ export default function ReviewQueuePage() {
           error={queue.error}
           showOwner
           timeColumn="waiting"
-          emptyState={{
-            title: "Nothing waiting for review",
-            description:
-              "Clubs appear here as soon as their leads submit them.",
-            action: (
-              <Button
-                size="sm"
-                variant="outline"
-                nativeButton={false}
-                render={<Link to="/" />}
-              >
-                View all clubs
-              </Button>
-            ),
-          }}
+          emptyState={emptyState}
         />
         <Pager
           page={page}
           pageSize={CLUBS_PAGE_SIZE}
           total={queue.data?.total ?? 0}
-          onPageChange={(nextPage) =>
-            setSearchParams({ page: String(nextPage) })
-          }
+          onPageChange={showPage}
         />
       </Card>
     </div>

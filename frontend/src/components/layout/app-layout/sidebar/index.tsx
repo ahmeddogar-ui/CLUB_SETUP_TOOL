@@ -32,7 +32,7 @@ const NAV_ITEMS = [
 /** Club pages (/clubs/new, /clubs/3) belong to the Clubs section. */
 function isCurrentSection(itemPath: string, pathname: string): boolean {
   if (itemPath === "/")
-    return pathname === "/" || pathname.startsWith("/clubs");
+    return pathname === "/" || pathname.startsWith("/clubs/");
   return pathname.startsWith(itemPath);
 }
 

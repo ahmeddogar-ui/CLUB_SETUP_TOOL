@@ -1,6 +1,8 @@
 """GET /api/clubs as a page: owner and progress per club, search, pagination,
 and the per-status counts behind the admin's summary cards."""
 
+from datetime import datetime
+
 import pytest
 from sqlalchemy import event
 
@@ -25,7 +27,7 @@ def test_each_club_carries_its_owner_and_last_update(client, db, lead, admin):
     club = make_club(db, lead, name="Owner Check Club")
     [item] = get_page(client, admin, q="Owner Check Club")["items"]
     assert item["owner_name"] == lead.name
-    assert item["updated_at"].startswith(club.updated_at.date().isoformat())
+    assert datetime.fromisoformat(item["updated_at"]) == club.updated_at
 
 
 def test_document_progress_counts_provided_documents_only(client, db, lead):
@@ -57,7 +59,7 @@ def test_search_matches_part_of_the_name_in_any_case(client, db, lead):
     assert names(get_page(client, lead, q="soc")) == ["Film Society"]
 
 
-@pytest.mark.parametrize("wildcard", ["%", "_"])
+@pytest.mark.parametrize("wildcard", ["%", "_", "\\"])
 def test_search_treats_sql_wildcards_literally(client, db, lead, wildcard):
     make_club(db, lead, name="Chess Club")
     make_club(db, lead, name=f"100{wildcard} Club")

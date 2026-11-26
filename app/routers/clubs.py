@@ -54,7 +54,15 @@ def list_clubs(
     limit: int = Query(default=PAGE_SIZE_DEFAULT, ge=1, le=PAGE_SIZE_MAX),
     offset: int = Query(default=0, ge=0),
 ):
-    page = list_clubs_for_user(db, current_user, status_filter, sort, q, limit, offset)
+    page = list_clubs_for_user(
+        db,
+        current_user,
+        statuses=status_filter,
+        sort=sort,
+        search=q,
+        limit=limit,
+        offset=offset,
+    )
     return ClubPageOut(
         items=[_list_item(summary) for summary in page.items],
         total=page.total,

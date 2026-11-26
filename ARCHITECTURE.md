@@ -65,7 +65,8 @@ Every schema change is an Alembic migration in `alembic/` at the repo root.
 `requirements` (six per club, created with the club: four document links and
 two checklist items) and `club_events` (one row per action, newest first via
 `idx_events_club_time`). `refresh_tokens` stores SHA-256 hashes of login tokens.
-`idx_clubs_status_updated` serves the admin review queue.
+`idx_clubs_status_updated` serves lists filtered by status and sorted by last
+update (the review queue and the admin's status tabs).
 
 ### Club lifecycle
 
@@ -78,6 +79,21 @@ drafting ─submit─► submitted ─start review─► under_review ─┬─a
 Leads submit and resubmit; admins do everything else. While a club is
 `under_review`, admins approve or reject each requirement; the club can only be
 approved once all six are approved.
+
+### Listing clubs
+
+`GET /api/clubs` returns one page: `{items, total, status_counts}`. It takes
+`status` (repeatable), `sort` (`oldest`/`newest`), `q` (case-insensitive name
+search; `%` and `_` match literally), `limit` (1–100, default 20) and `offset`.
+Each item adds `owner_name`, `updated_at` and `documents_provided` /
+`documents_total` to the club. A page costs three queries whatever its size:
+the items (owner join plus correlated document counts), the filtered `total`,
+and one `GROUP BY status` for `status_counts`, which covers every club the
+user can see and ignores the filters. A document counts as provided while it
+is `submitted` or `approved` (`DOCUMENT_PROVIDED_STATUSES`, shared with the
+submit guard). A club's `updated_at` moves on every status change, edit and
+new document link; reviewing a requirement doesn't move it, so the review
+queue's "waiting" time is the time since the last status change.
 
 ### Auth
 
@@ -114,7 +130,8 @@ primitives (`src/components/ui`, MIT, see `frontend/LICENSE.md`).
 ### Data fetching
 
 TanStack Query handles all server data: `useQuery` to read, `useMutation` to
-change. Query keys are `["me", token]`, `["clubs"]`, `["clubs", "review-queue"]`,
+change. Query keys are `["me", token]`, `["clubs", "list", filters]` (every
+club list: status, search, sort and page; built by `clubPageQuery`),
 `["clubs", id]`, `["clubs", id, "requirements"]` and `["clubs", id, "events"]`.
 Every club change goes through `useClubMutation`, which invalidates `["clubs"]`
 so all club data refetches. 4xx errors are not retried; 5xx and network errors
@@ -138,13 +155,16 @@ state; the auth context owns sign-out.
 | URL | Who | Page |
 | --- | --- | --- |
 | `/signin`, `/signup` | signed out | Sign in; register as a club lead |
-| `/` | everyone | `clubs-page.tsx`: a lead's own clubs, or every club for an admin |
+| `/` | everyone | `clubs-page.tsx`: a lead's own clubs, or every club for an admin with status counts, status tabs and a name search. Status, search and page are in the URL (`?status=&q=&page=`) |
 | `/clubs/new` | club leads | `new-club-page.tsx` |
 | `/clubs/:clubId` | owner or admin | `club-detail-page.tsx`: details, requirements, history, actions |
-| `/review` | admins | `review-queue-page.tsx`: submitted and under-review clubs, oldest first |
+| `/review` | admins | `review-queue-page.tsx`: submitted and under-review clubs, oldest first, with how long each has waited |
 
 The backend enforces every rule; the UI only hides buttons that would be
 refused, and shows the backend's message when something is.
+
+Every list pages through 20 clubs at a time, and every empty list says why
+and offers a next step (create a club, clear the filters, go to the first page).
 
 ## Deployment
 
