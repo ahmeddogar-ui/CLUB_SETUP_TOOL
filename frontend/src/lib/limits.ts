@@ -7,3 +7,4 @@ export const PASSWORD_MIN_LENGTH = 8;
 export const PASSWORD_MAX_LENGTH = 128;
 // The backend stores one name of at most 100 characters: first + " " + last.
 export const NAME_PART_MAX_LENGTH = 49;
+export const PERSON_NAME_MAX_LENGTH = 100;

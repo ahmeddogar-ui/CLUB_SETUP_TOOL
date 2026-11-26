@@ -19,4 +19,5 @@ export { PencilIcon } from "./pencil";
 export { PlusIcon } from "./plus";
 export { SunIcon } from "./sun";
 export { TaskIcon } from "./task";
+export { UserIcon } from "./user";
 export { XIcon } from "./x";

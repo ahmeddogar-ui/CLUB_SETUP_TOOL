@@ -77,6 +77,17 @@ class UserOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class UserUpdateRequest(BaseModel):
+    name: PersonName
+
+
+class PasswordChangeRequest(BaseModel):
+    current_password: str = Field(max_length=PASSWORD_MAX_LENGTH)
+    new_password: str = Field(
+        min_length=PASSWORD_MIN_LENGTH, max_length=PASSWORD_MAX_LENGTH
+    )
+
+
 class ClubCreateRequest(BaseModel):
     name: ClubName
     description: Description

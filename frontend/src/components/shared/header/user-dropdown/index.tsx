@@ -7,9 +7,10 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown";
 import { useAuth } from "@/contexts";
-import { ChevronDownIcon, LogOutIcon } from "@/icons";
+import { ChevronDownIcon, LogOutIcon, UserIcon } from "@/icons";
 import { cn, getInitials } from "@/utils";
 import { useState } from "react";
+import { Link } from "react-router";
 
 export default function UserDropdown() {
   const { user, signOut } = useAuth();
@@ -44,6 +45,11 @@ export default function UserDropdown() {
         </div>
 
         <DropdownMenuSeparator />
+
+        <DropdownMenuItem nativeButton={false} render={<Link to="/profile" />}>
+          <UserIcon />
+          Profile
+        </DropdownMenuItem>
 
         <DropdownMenuItem variant="destructive" onClick={signOut}>
           <LogOutIcon />

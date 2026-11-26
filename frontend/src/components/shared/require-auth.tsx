@@ -1,9 +1,14 @@
 import { Spinner } from "@/components/ui/spinner";
 import { useAuth } from "@/contexts";
-import { Navigate, Outlet } from "react-router";
+import { Navigate, Outlet, useLocation } from "react-router";
 
+const HOME_PATH = "/";
+
+/** Keeps signed-out visitors off protected pages. Someone opening the bare
+ * site sees the landing page; a deep link goes straight to sign-in. */
 export function RequireAuth() {
   const { user, isLoading } = useAuth();
+  const location = useLocation();
 
   if (isLoading) {
     return (
@@ -13,7 +18,10 @@ export function RequireAuth() {
     );
   }
 
-  if (!user) return <Navigate to="/signin" replace />;
+  if (!user) {
+    const isHome = location.pathname === HOME_PATH;
+    return <Navigate to={isHome ? "/welcome" : "/signin"} replace />;
+  }
 
   return <Outlet />;
 }

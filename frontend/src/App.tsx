@@ -7,6 +7,8 @@ import NewClubPage from "@/pages/main/clubs/new-club-page";
 import ReviewQueuePage from "@/pages/main/clubs/review-queue-page";
 import { useTheme } from "@/contexts";
 import { Error404Page } from "@/pages/main/pages";
+import ProfilePage from "@/pages/main/profile/profile-page";
+import LandingPage from "@/pages/others/landing/landing-page";
 import { AuthLayout, SignInPage, SignUpPage } from "@/pages/others/auth";
 import { Route, Routes } from "react-router";
 import { Toaster } from "sonner";
@@ -23,11 +25,14 @@ export default function App() {
             <Route index element={<ClubsPage />} />
             <Route path="/clubs/new" element={<NewClubPage />} />
             <Route path="/clubs/:clubId" element={<ClubDetailPage />} />
+            <Route path="/profile" element={<ProfilePage />} />
             <Route element={<RequireAdmin />}>
               <Route path="/review" element={<ReviewQueuePage />} />
             </Route>
           </Route>
         </Route>
+
+        <Route path="/welcome" element={<LandingPage />} />
 
         <Route element={<AuthLayout />}>
           <Route path="/signin" element={<SignInPage />} />

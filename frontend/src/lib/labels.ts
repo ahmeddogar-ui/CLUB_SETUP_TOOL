@@ -1,4 +1,9 @@
-import type { ClubStatus, RequirementStatus, RequirementType } from "./types";
+import type {
+  ClubStatus,
+  RequirementStatus,
+  RequirementType,
+  UserRole,
+} from "./types";
 
 type BadgeColor = "primary" | "success" | "error" | "warning" | "info" | "gray";
 
@@ -108,3 +113,8 @@ export function formatWaiting(isoTimestamp: string): string {
   if (days < 1) return "Less than a day";
   return days === 1 ? "1 day" : `${days} days`;
 }
+
+export const USER_ROLE_LABELS: Record<UserRole, string> = {
+  club_lead: "Club lead",
+  admin: "Administrator",
+};

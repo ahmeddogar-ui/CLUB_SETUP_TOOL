@@ -12,7 +12,7 @@ from app.core.security import (
     new_refresh_token,
     verify_password,
 )
-from app.exceptions import Conflict, Unauthorized
+from app.exceptions import Conflict, Forbidden, Unauthorized
 from app.models import RefreshToken, User, UserRole
 
 UNIQUE_EMAIL_CONSTRAINT = "uq_users_email"
@@ -111,3 +111,35 @@ def make_admin(db: Session, email: str) -> User | None:
     db.commit()
     db.refresh(user)
     return user
+
+
+def update_name(db: Session, user: User, name: str) -> User:
+    user.name = name
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+def change_password(
+    db: Session,
+    user: User,
+    current_password: str,
+    new_password: str,
+    keep_refresh_token: str | None,
+) -> None:
+    """Sets a new password and signs the user out everywhere else: every
+    refresh token is revoked except `keep_refresh_token`, the current session's.
+    Raises Forbidden (not Unauthorized: the session itself is fine) if the
+    current password is wrong."""
+    if not verify_password(current_password, user.password_hash):
+        raise Forbidden("Current password is incorrect")
+    user.password_hash = hash_password(new_password)
+
+    kept_hash = hash_refresh_token(keep_refresh_token) if keep_refresh_token else None
+    other_tokens = db.query(RefreshToken).filter(
+        RefreshToken.user_id == user.id,
+        RefreshToken.revoked_at.is_(None),
+        RefreshToken.token_hash != kept_hash,
+    )
+    other_tokens.update({RefreshToken.revoked_at: datetime.now(UTC)})
+    db.commit()
