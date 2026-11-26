@@ -42,6 +42,19 @@ function requirementRow(label: string) {
 }
 
 describe("club detail as the owning club lead", () => {
+  it("marks Clubs as the current section in the sidebar", async () => {
+    const club = buildClub();
+    serveClub(club);
+    const { user } = await openClub(club);
+    // jsdom's window is narrower than the sidebar's breakpoint: it's a drawer.
+    await user.click(screen.getByRole("button", { name: "Toggle sidebar" }));
+
+    expect(await screen.findByRole("link", { name: "Clubs" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+  });
+
   it("offers edit, submit and document links while drafting, and no review controls", async () => {
     const club = buildClub();
     serveClub(club);

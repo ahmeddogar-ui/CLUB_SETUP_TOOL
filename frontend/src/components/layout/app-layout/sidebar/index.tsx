@@ -29,6 +29,13 @@ const NAV_ITEMS = [
   },
 ];
 
+/** Club pages (/clubs/new, /clubs/3) belong to the Clubs section. */
+function isCurrentSection(itemPath: string, pathname: string): boolean {
+  if (itemPath === "/")
+    return pathname === "/" || pathname.startsWith("/clubs");
+  return pathname.startsWith(itemPath);
+}
+
 export default function AppSidebar() {
   const { open, isMobile, isHovered } = useSidebar();
   const { pathname } = useLocation();
@@ -60,11 +67,12 @@ export default function AppSidebar() {
             </SidebarGroupLabel>
             <SidebarMenu className="gap-1">
               {visibleItems.map((item) => {
-                const isActive = item.path === pathname;
+                const isActive = isCurrentSection(item.path, pathname);
                 return (
                   <SidebarMenuItem key={item.path}>
                     <Link
                       to={item.path}
+                      aria-current={isActive ? "page" : undefined}
                       className={cn(
                         "group menu-item",
                         isActive ? "menu-item-active" : "menu-item-inactive",
