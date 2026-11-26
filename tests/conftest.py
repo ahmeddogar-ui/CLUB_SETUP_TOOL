@@ -57,9 +57,9 @@ from app.core.security import create_access_token, hash_password  # noqa: E402
 from app.database import get_db  # noqa: E402
 from app.main import app  # noqa: E402
 from app.models import (  # noqa: E402
-    ClubEvent,
     Clubs,
     ClubStatus,
+    Event,
     Requirement,
     RequirementKind,
     RequirementStatus,
@@ -189,7 +189,7 @@ def make_club(
     ready to be approved, or RequirementStatus.submitted for one mid-review.
     Leave it None to keep the default `pending` on every requirement.
 
-    This writes rows straight into the DB and does not emit ClubEvent rows for
+    This writes rows straight into the DB and does not emit Event rows for
     the skipped transitions -- it is not a substitute for tests that exercise
     the transition endpoints themselves, only for tests that need a club
     already sitting in some state to test something else.
@@ -219,7 +219,7 @@ def make_club(
         )
 
     db.add(
-        ClubEvent(
+        Event(
             club_id=club.id,
             actor_id=owner.id,
             event_type="created",

@@ -4,7 +4,7 @@ The only thing done outside the API is creating the admin user, because there is
 admin-registration route yet.
 """
 
-from app.models import ClubEvent, UserRole
+from app.models import Event, UserRole
 from tests.conftest import auth, make_user
 
 DOCUMENTS = ("constitution", "exec_list", "budget", "advisor_form")
@@ -85,12 +85,7 @@ def test_full_flow_to_approval(client, db):
     )
     assert ok(client.get(f"/api/clubs/{club_id}", headers=lead))["status"] == "approved"
 
-    events = (
-        db.query(ClubEvent)
-        .filter(ClubEvent.club_id == club_id)
-        .order_by(ClubEvent.id)
-        .all()
-    )
+    events = db.query(Event).filter(Event.club_id == club_id).order_by(Event.id).all()
     assert [e.event_type for e in events] == (
         ["created"]
         + ["requirement_submitted"] * 4
@@ -171,12 +166,7 @@ def test_full_flow_with_rejected_document_and_changes_loop(client, db):
         == "approved"
     )
 
-    events = (
-        db.query(ClubEvent)
-        .filter(ClubEvent.club_id == club_id)
-        .order_by(ClubEvent.id)
-        .all()
-    )
+    events = db.query(Event).filter(Event.club_id == club_id).order_by(Event.id).all()
 
     club_level = [e for e in events if e.requirement_id is None]
     assert [e.event_type for e in club_level] == [

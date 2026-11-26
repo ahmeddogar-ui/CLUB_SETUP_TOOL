@@ -5,9 +5,10 @@ from sqlalchemy.orm import Session
 from app.exceptions import Conflict, Forbidden
 from app.models import (
     DOCUMENT_PROVIDED_STATUSES,
-    ClubEvent,
     Clubs,
     ClubStatus,
+    Event,
+    EventType,
     Requirement,
     RequirementKind,
     RequirementStatus,
@@ -23,17 +24,17 @@ ALLOWED: dict[tuple[str, str], str] = {
     ("changes_requested", "submitted"): "club_lead",
 }
 
-EVENT_TYPES: dict[tuple[str, str], str] = {
-    ("drafting", "submitted"): "submitted",
-    ("submitted", "under_review"): "review_started",
-    ("under_review", "changes_requested"): "changes_requested",
-    ("under_review", "approved"): "approved",
-    ("under_review", "rejected"): "rejected",
-    ("changes_requested", "submitted"): "resubmitted",
+EVENT_TYPES: dict[tuple[str, str], EventType] = {
+    ("drafting", "submitted"): EventType.submitted,
+    ("submitted", "under_review"): EventType.review_started,
+    ("under_review", "changes_requested"): EventType.changes_requested,
+    ("under_review", "approved"): EventType.approved,
+    ("under_review", "rejected"): EventType.rejected,
+    ("changes_requested", "submitted"): EventType.resubmitted,
 }
 
 
-def _event_for(from_status: str, to_status: str) -> str:
+def _event_for(from_status: str, to_status: str) -> EventType:
     return EVENT_TYPES[(from_status, to_status)]
 
 
@@ -111,7 +112,7 @@ def attempt_transition(
     club.updated_at = datetime.now(UTC)
 
     db.add(
-        ClubEvent(
+        Event(
             club_id=club.id,
             actor_id=actor.id,
             event_type=_event_for(from_status, to_status),

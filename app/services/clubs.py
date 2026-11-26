@@ -6,11 +6,13 @@ from sqlalchemy import ColumnElement, ScalarSelect, func, select
 from sqlalchemy.orm import Query, Session
 
 from app.exceptions import Conflict, Forbidden, NotFound
+from app.listing import contains
 from app.models import (
     DOCUMENT_PROVIDED_STATUSES,
-    ClubEvent,
     Clubs,
     ClubStatus,
+    Event,
+    EventType,
     Requirement,
     RequirementKind,
     RequirementStatus,
@@ -78,10 +80,10 @@ def create_club_for_user(db: Session, user: User, name: str, description: str) -
         )
 
     db.add(
-        ClubEvent(
+        Event(
             club_id=club.id,
             actor_id=user.id,
-            event_type="created",
+            event_type=EventType.created,
             from_status=None,
             to_status=ClubStatus.drafting,
         )
@@ -124,12 +126,6 @@ def _document_count(*conditions: ColumnElement[bool]) -> ScalarSelect[int]:
     )
 
 
-def _name_contains(search: str) -> ColumnElement[bool]:
-    """Case-insensitive substring match; % and _ in the search match literally."""
-    escaped = search.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
-    return Clubs.name.ilike(f"%{escaped}%", escape="\\")
-
-
 def _visible_clubs(db: Session, user: User) -> Query[Clubs]:
     """Role scoping; the filters applied on top only ever narrow this set."""
     visible = db.query(Clubs)
@@ -145,7 +141,7 @@ def _filtered(
     if statuses:
         query = query.filter(Clubs.status.in_(statuses))
     if search:
-        query = query.filter(_name_contains(search))
+        query = query.filter(contains(Clubs.name, search))
     return query
 
 
@@ -313,13 +309,17 @@ def review_club(
     return attempt_transition(db, club, to_status, admin, note)
 
 
-def list_club_events(db: Session, club_id: int) -> list[tuple[ClubEvent, str]]:
-    """Newest first, with the actor's name; served by idx_events_club_time."""
+def list_club_events(db: Session, club_id: int) -> list[tuple[Event, str]]:
+    """The club's registration history, newest first, with the actor's name;
+    served by idx_events_club_time. Comments have their own thread."""
     return (
-        db.query(ClubEvent, User.name)
-        .join(User, User.id == ClubEvent.actor_id)
-        .filter(ClubEvent.club_id == club_id)
-        .order_by(ClubEvent.created_at.desc(), ClubEvent.id.desc())
+        db.query(Event, User.name)
+        .join(User, User.id == Event.actor_id)
+        .filter(
+            Event.club_id == club_id,
+            Event.event_type != EventType.comment_posted,
+        )
+        .order_by(Event.created_at.desc(), Event.id.desc())
         .tuples()
         .all()
     )

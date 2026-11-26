@@ -1,7 +1,7 @@
 import pytest
 
 from app.exceptions import Conflict
-from app.models import ClubEvent, Clubs, ClubStatus, User, UserRole
+from app.models import Clubs, ClubStatus, Event, User, UserRole
 from app.seed import (
     DEMO_ADMIN_EMAIL,
     DEMO_LEAD_EMAIL,
@@ -62,7 +62,7 @@ def test_seeded_clubs_have_real_history(db):
         club for club in seeded_clubs(db) if club.status == ClubStatus.approved
     )
     event_types = {
-        event.event_type for event in db.query(ClubEvent).filter_by(club_id=approved.id)
+        event.event_type for event in db.query(Event).filter_by(club_id=approved.id)
     }
     assert {"created", "submitted", "review_started", "approved"} <= event_types
 

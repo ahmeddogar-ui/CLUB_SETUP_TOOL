@@ -4,7 +4,7 @@ from datetime import UTC, datetime
 
 import pytest
 
-from app.models import ClubEvent, Clubs, ClubStatus, RequirementStatus
+from app.models import Clubs, ClubStatus, Event, RequirementStatus
 from tests.conftest import auth, create_club, provide_all_documents, requirements_for
 
 DOCUMENTS = ("constitution", "exec_list", "budget", "advisor_form")
@@ -237,9 +237,9 @@ def test_reject_with_note(client, db, under_review, admin):
 
 def requirement_events(db, club_id):
     return (
-        db.query(ClubEvent)
-        .filter(ClubEvent.club_id == club_id, ClubEvent.requirement_id.is_not(None))
-        .order_by(ClubEvent.id)
+        db.query(Event)
+        .filter(Event.club_id == club_id, Event.requirement_id.is_not(None))
+        .order_by(Event.id)
         .all()
     )
 

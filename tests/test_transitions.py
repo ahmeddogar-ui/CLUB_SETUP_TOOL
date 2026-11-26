@@ -6,9 +6,9 @@ from sqlalchemy.exc import DBAPIError, IntegrityError
 
 from app.exceptions import Conflict, Forbidden
 from app.models import (
-    ClubEvent,
     Clubs,
     ClubStatus,
+    Event,
     RequirementStatus,
     User,
     UserRole,
@@ -26,11 +26,11 @@ def load_club(db, club_id) -> Clubs:
     return db.get(Clubs, club_id)
 
 
-def transition_events(db, club_id) -> list[ClubEvent]:
+def transition_events(db, club_id) -> list[Event]:
     return (
-        db.query(ClubEvent)
-        .filter(ClubEvent.club_id == club_id, ClubEvent.event_type != "created")
-        .order_by(ClubEvent.id)
+        db.query(Event)
+        .filter(Event.club_id == club_id, Event.event_type != "created")
+        .order_by(Event.id)
         .all()
     )
 
@@ -318,8 +318,8 @@ def test_failed_event_write_rolls_back_status_change(db, submitted):
 @pytest.mark.parametrize(
     "statement",
     [
-        "UPDATE club_events SET note = 'rewritten' WHERE club_id = :club_id",
-        "DELETE FROM club_events WHERE club_id = :club_id",
+        "UPDATE events SET note = 'rewritten' WHERE club_id = :club_id",
+        "DELETE FROM events WHERE club_id = :club_id",
     ],
 )
 def test_history_rows_cannot_be_edited_or_deleted(db, submitted, statement):

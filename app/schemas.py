@@ -13,6 +13,7 @@ from pydantic import (
 
 from app.models import (
     ClubStatus,
+    EventType,
     RequirementKind,
     RequirementStatus,
     RequirementType,
@@ -28,6 +29,7 @@ PASSWORD_MAX_LENGTH = 128
 CLUB_NAME_MAX_LENGTH = 100
 DESCRIPTION_MAX_LENGTH = 2000
 NOTE_MAX_LENGTH = 2000
+COMMENT_MAX_LENGTH = 2000
 URL_MAX_LENGTH = 2048
 SEARCH_MAX_LENGTH = 100
 PAGE_SIZE_DEFAULT = 20
@@ -88,6 +90,21 @@ class PasswordChangeRequest(BaseModel):
     )
 
 
+class UserListItemOut(UserOut):
+    created_at: datetime
+
+
+class RoleChangeRequest(BaseModel):
+    role: UserRole
+
+
+class Page[T](BaseModel):
+    """One page of a list: `total` counts every match, across all pages."""
+
+    items: list[T]
+    total: int
+
+
 class ClubCreateRequest(BaseModel):
     name: ClubName
     description: Description
@@ -142,11 +159,11 @@ class RequirementLinkRequest(BaseModel):
 
 class ClubEventOut(BaseModel):
     id: int
-    event_type: str
+    event_type: EventType
     requirement_id: int | None
     link_url: str | None
     from_status: ClubStatus | None
-    to_status: ClubStatus
+    to_status: ClubStatus | None
     note: str | None
     actor_name: str
     created_at: datetime
@@ -162,3 +179,36 @@ class RequirementOut(BaseModel):
     reviewer_note: str | None
 
     model_config = {"from_attributes": True}
+
+
+class CommentRequest(BaseModel):
+    body: Annotated[
+        str,
+        StringConstraints(
+            strip_whitespace=True, min_length=1, max_length=COMMENT_MAX_LENGTH
+        ),
+    ]
+
+
+class CommentOut(BaseModel):
+    id: int
+    body: str
+    author_name: str
+    author_role: UserRole
+    created_at: datetime
+
+
+class ActivityOut(BaseModel):
+    id: int
+    event_type: EventType
+    created_at: datetime
+    actor_id: int
+    actor_name: str
+    club_id: int | None
+    club_name: str | None
+    subject_user_id: int | None
+    subject_user_name: str | None
+    requirement_type: RequirementType | None
+    from_status: ClubStatus | None
+    to_status: ClubStatus | None
+    note: str | None

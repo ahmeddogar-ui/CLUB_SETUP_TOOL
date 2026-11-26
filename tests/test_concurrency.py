@@ -10,9 +10,9 @@ from sqlalchemy.orm import Session
 
 from app.exceptions import Conflict
 from app.models import (
-    ClubEvent,
     Clubs,
     ClubStatus,
+    Event,
     RequirementStatus,
     User,
     UserRole,
@@ -30,14 +30,14 @@ TIMEOUT_SECONDS = 10
 def committed_db(engine):
     """A session whose commits are real. The test database is disposable, so
     afterwards every table is emptied. TRUNCATE doesn't fire the append-only
-    trigger on club_events, which only guards row-level UPDATE and DELETE."""
+    trigger on events, which only guards row-level UPDATE and DELETE."""
     with Session(engine) as session:
         yield session
     # Must list every table, or rows from this test leak into the next run.
     with engine.begin() as connection:
         connection.execute(
             text(
-                "TRUNCATE users, clubs, requirements, club_events, refresh_tokens "
+                "TRUNCATE users, clubs, requirements, events, refresh_tokens "
                 "RESTART IDENTITY CASCADE"
             )
         )
@@ -69,8 +69,8 @@ def test_parallel_submits_on_one_club_succeed_exactly_once(engine, committed_db)
     assert outcomes.count("conflict") == PARALLEL_REQUESTS - 1
     submitted_events = committed_db.scalar(
         select(func.count())
-        .select_from(ClubEvent)
-        .where(ClubEvent.club_id == club_id, ClubEvent.event_type == "submitted")
+        .select_from(Event)
+        .where(Event.club_id == club_id, Event.event_type == "submitted")
     )
     assert submitted_events == 1
     committed_db.expire_all()

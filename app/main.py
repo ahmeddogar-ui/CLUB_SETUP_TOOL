@@ -9,9 +9,12 @@ from sqlalchemy.exc import OperationalError
 from app.core.config import settings
 from app.database import DbSession
 from app.exceptions import Conflict, DomainError, Forbidden, NotFound, Unauthorized
+from app.routers.activity import router as activity_router
 from app.routers.auth import router as auth_router
 from app.routers.clubs import router as clubs_router
+from app.routers.comments import router as comments_router
 from app.routers.requirements import router as requirements_router
+from app.routers.users import router as users_router
 
 # Where `npm run build` puts the React app. In development Vite serves it instead.
 FRONTEND_DIST = Path(__file__).resolve().parent.parent / "frontend" / "dist"
@@ -75,6 +78,9 @@ api = APIRouter(prefix="/api")
 api.include_router(auth_router)
 api.include_router(clubs_router)
 api.include_router(requirements_router)
+api.include_router(comments_router)
+api.include_router(users_router)
+api.include_router(activity_router)
 app.include_router(api)
 
 # Checked only after every route above: built files as they are, index.html for

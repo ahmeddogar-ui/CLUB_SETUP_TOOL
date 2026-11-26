@@ -2,7 +2,7 @@
 
 import pytest
 
-from app.models import ClubEvent, ClubStatus, RequirementStatus
+from app.models import ClubStatus, Event, RequirementStatus
 from tests.conftest import (
     approve_all_requirements,
     auth,
@@ -13,7 +13,7 @@ from tests.conftest import (
 
 
 def event_count(db, club_id) -> int:
-    return db.query(ClubEvent).filter(ClubEvent.club_id == club_id).count()
+    return db.query(Event).filter(Event.club_id == club_id).count()
 
 
 def post(client, club_id, action, user, **kwargs):
@@ -148,9 +148,9 @@ def test_note_actions_store_note_on_event(
     assert response.status_code == 200
     assert response.json()["status"] == expected
     event = (
-        db.query(ClubEvent)
-        .filter(ClubEvent.club_id == under_review["id"])
-        .order_by(ClubEvent.id.desc())
+        db.query(Event)
+        .filter(Event.club_id == under_review["id"])
+        .order_by(Event.id.desc())
         .first()
     )
     assert event.to_status == ClubStatus(expected)
@@ -223,12 +223,7 @@ def test_second_full_loop_accumulates_events(
     )
     assert post(client, club_id, "resubmit", lead).status_code == 200
 
-    events = (
-        db.query(ClubEvent)
-        .filter(ClubEvent.club_id == club_id)
-        .order_by(ClubEvent.id)
-        .all()
-    )
+    events = db.query(Event).filter(Event.club_id == club_id).order_by(Event.id).all()
     assert [e.event_type for e in events] == [
         "created",
         "submitted",

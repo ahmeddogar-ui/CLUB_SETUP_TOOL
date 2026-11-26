@@ -61,6 +61,29 @@ class RequirementStatus(str, Enum):
     rejected = "rejected"
 
 
+class EventType(str, Enum):
+    """Every kind of history entry. Stored as a plain string column, so a new
+    kind costs no migration; this enum keeps the code and the activity log's
+    filter to the same vocabulary."""
+
+    # A club's registration.
+    created = "created"
+    submitted = "submitted"
+    review_started = "review_started"
+    changes_requested = "changes_requested"
+    resubmitted = "resubmitted"
+    approved = "approved"
+    rejected = "rejected"
+    # One requirement of a club; the club's status stays put (from == to).
+    requirement_submitted = "requirement_submitted"
+    requirement_approved = "requirement_approved"
+    requirement_rejected = "requirement_rejected"
+    # A message in a club's discussion; the body is the note.
+    comment_posted = "comment_posted"
+    # A user's role; the user is subject_user_id, the change is the note.
+    role_changed = "role_changed"
+
+
 # A document counts as provided once a link is in and hasn't been rejected.
 DOCUMENT_PROVIDED_STATUSES = (RequirementStatus.submitted, RequirementStatus.approved)
 
@@ -126,37 +149,47 @@ class Requirement(Base):
     )
 
 
-class ClubEvent(Base):
-    __tablename__ = "club_events"
-    # Serves a club's history: filter by club, newest first.
+class Event(Base):
+    """The app's one append-only history: every club, requirement, comment and
+    role action is a row here. A club's history and the admin's activity log
+    are both views of it."""
+
+    __tablename__ = "events"
     __table_args__ = (
+        CheckConstraint(
+            "club_id IS NOT NULL OR subject_user_id IS NOT NULL",
+            name="about_club_or_user",
+        ),
+        # A club's history (and its comments): filter by club, newest first.
         Index("idx_events_club_time", "club_id", text("created_at DESC")),
+        # The activity log: everything, by actor, or by type, newest first.
+        Index("idx_events_time", text("created_at DESC"), text("id DESC")),
+        Index("idx_events_actor_time", "actor_id", text("created_at DESC")),
+        Index("idx_events_type_time", "event_type", text("created_at DESC")),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     # RESTRICT, not CASCADE: history is append-only (a trigger rejects deletes),
     # so a club with history can't be deleted either.
-    club_id: Mapped[int] = mapped_column(ForeignKey("clubs.id", ondelete="RESTRICT"))
+    club_id: Mapped[int | None] = mapped_column(
+        ForeignKey("clubs.id", ondelete="RESTRICT")
+    )
+    # The user an event is about when it isn't about a club (role_changed).
+    subject_user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"))
     actor_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
-    # Club-level: "created", "submitted", "review_started", "changes_requested",
-    # "resubmitted", "approved", "rejected".
-    # Requirement-level: "requirement_submitted", "requirement_approved",
-    # "requirement_rejected". These fire while the club itself stays at one status
-    # (from_status == to_status) and use requirement_id to say WHICH requirement --
-    # the requirement is never baked into the string (not "exec_list_rejected"), or
-    # this becomes 6 types x 3 outcomes = 18 values and "all rejections" turns into a
-    # LIKE match instead of an equality.
-    # Left as str, not an Enum, until that vocabulary stops growing -- each new value
-    # would otherwise cost an ALTER TYPE migration. Convert once it settles.
+    # An EventType value. Requirement events name WHICH requirement through
+    # requirement_id, never in the string ("requirement_rejected", not
+    # "budget_rejected"), so "all rejections" stays an equality.
     event_type: Mapped[str]
     requirement_id: Mapped[int | None] = mapped_column(ForeignKey("requirements.id"))
     # For requirement_submitted: the exact link provided, so the history shows which
     # version of a document each later approve/reject decision was about.
     link_url: Mapped[str | None]
+    # The club's status around a club event; empty for comments and role changes.
     from_status: Mapped[ClubStatus | None] = mapped_column(SAEnum(ClubStatus))
-    to_status: Mapped[ClubStatus] = mapped_column(SAEnum(ClubStatus))
-    # Reviewer's reason for changes_requested / rejected. Stored per event so each
-    # review round keeps its own note instead of a later one overwriting it.
+    to_status: Mapped[ClubStatus | None] = mapped_column(SAEnum(ClubStatus))
+    # A reviewer's reason, a comment's body, or a role change ("Club lead → Admin").
+    # Stored per event so each review round keeps its own note.
     note: Mapped[str | None]
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=text("now()")
