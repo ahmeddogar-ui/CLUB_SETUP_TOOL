@@ -8,7 +8,7 @@ import {
 } from "@/test/builders";
 import { renderApp } from "@/test/render-app";
 import { server } from "@/test/server";
-import { screen, within } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { describe, expect, it } from "vitest";
 
@@ -88,6 +88,9 @@ describe("club detail as the owning club lead", () => {
 
     await user.click(screen.getByRole("button", { name: "Submit for review" }));
 
+    expect(
+      await screen.findByText("Club submitted for review"),
+    ).toBeInTheDocument();
     expect(await screen.findByText("Submitted")).toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "Submit for review" }),
@@ -181,6 +184,54 @@ describe("club detail as the owning club lead", () => {
     expect(
       within(requirementRow("Budget")).getByText("Provided"),
     ).toBeInTheDocument();
+  });
+
+  it("explains an invalid link inline and never calls the backend", async () => {
+    const club = buildClub();
+    serveClub(club);
+    const { user } = await openClub(club);
+
+    await user.click(
+      within(requirementRow("Budget")).getByRole("button", {
+        name: "Provide link",
+      }),
+    );
+    await user.type(screen.getByLabelText(/document link/i), "not a link");
+    await user.click(screen.getByRole("button", { name: "Save link" }));
+
+    expect(
+      await screen.findByText("Enter a full link, starting with https://"),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText(/document link/i)).toHaveAttribute(
+      "aria-invalid",
+      "true",
+    );
+  });
+
+  it("saves a link when Enter is pressed", async () => {
+    const club = buildClub();
+    serveClub(club);
+    let saved = false;
+    server.use(
+      http.put(`/api${CLUB_URL}/requirements/budget/link`, () => {
+        saved = true;
+        return HttpResponse.json(buildRequirements(club.id)[2]);
+      }),
+    );
+    const { user } = await openClub(club);
+
+    await user.click(
+      within(requirementRow("Budget")).getByRole("button", {
+        name: "Provide link",
+      }),
+    );
+    await user.type(
+      screen.getByLabelText(/document link/i),
+      "https://docs.example.com/budget{Enter}",
+    );
+
+    expect(await screen.findByText("Link saved")).toBeInTheDocument();
+    expect(saved).toBe(true);
   });
 
   it("shows read-only details once the club is under review", async () => {
@@ -284,6 +335,54 @@ describe("club detail as an admin", () => {
     ).toBeInTheDocument();
   });
 
+  it("asks for confirmation, showing the note, before rejecting the club", async () => {
+    const club = buildClub({ status: "under_review" });
+    const state = serveClub(club);
+    let sent: unknown;
+    server.use(
+      http.post(`/api${CLUB_URL}/reject`, async ({ request }) => {
+        sent = await request.json();
+        state.club = { ...state.club, status: "rejected" };
+        return HttpResponse.json(state.club);
+      }),
+    );
+    const { user } = await openClub(club, ADMIN);
+
+    await user.click(screen.getByRole("button", { name: "Reject club" }));
+    const dialog = await screen.findByRole("dialog");
+    await user.type(within(dialog).getByRole("textbox"), "Duplicate club");
+    await user.click(
+      within(dialog).getByRole("button", { name: "Reject club" }),
+    );
+
+    expect(within(dialog).getByText("Reject Chess Club?")).toBeInTheDocument();
+    expect(within(dialog).getByText("Duplicate club")).toBeInTheDocument();
+    expect(sent).toBeUndefined();
+
+    await user.click(
+      within(dialog).getByRole("button", { name: "Yes, reject" }),
+    );
+
+    expect(await screen.findByText("Club rejected")).toBeInTheDocument();
+    expect(sent).toEqual({ note: "Duplicate club" });
+  });
+
+  it("goes back to the note from the confirmation without sending", async () => {
+    const club = buildClub({ status: "under_review" });
+    serveClub(club);
+    const { user } = await openClub(club, ADMIN);
+
+    await user.click(screen.getByRole("button", { name: "Reject club" }));
+    const dialog = await screen.findByRole("dialog");
+    await user.type(within(dialog).getByRole("textbox"), "Duplicate club");
+    await user.click(
+      within(dialog).getByRole("button", { name: "Reject club" }),
+    );
+    await user.click(within(dialog).getByRole("button", { name: "Back" }));
+
+    expect(within(dialog).getByRole("textbox")).toHaveValue("Duplicate club");
+  });
+
   it("stops a note at the length the backend allows", async () => {
     const club = buildClub({ status: "under_review" });
     serveClub(club);
@@ -325,8 +424,12 @@ describe("club detail as an admin", () => {
       "Budget is missing totals  ",
     );
     await user.click(confirm);
+    expect(sent).toBeUndefined();
+    await user.click(
+      within(dialog).getByRole("button", { name: "Yes, request changes" }),
+    );
 
-    expect(await screen.findByText("Changes requested")).toBeInTheDocument();
+    expect(await screen.findAllByText("Changes requested")).not.toHaveLength(0);
     expect(sent).toEqual({ note: "Budget is missing totals" });
   });
 
@@ -360,6 +463,16 @@ describe("club detail as an admin", () => {
         "Requirements can only be reviewed while the club is under_review",
       ),
     ).toBeInTheDocument();
+  });
+});
+
+describe("club detail page title", () => {
+  it("names the club in the browser tab", async () => {
+    const club = buildClub();
+    serveClub(club);
+    await openClub(club);
+
+    await waitFor(() => expect(document.title).toBe("Chess Club · Club Setup"));
   });
 });
 

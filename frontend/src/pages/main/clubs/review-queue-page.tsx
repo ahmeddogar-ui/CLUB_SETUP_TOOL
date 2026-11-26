@@ -6,7 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link, useSearchParams } from "react-router";
 import { CLUBS_PAGE_SIZE, clubPageQuery, readPage } from "./club-page-query";
 import { ClubsTable, type EmptyState, pastLastPage } from "./clubs-table";
-import { Pager } from "./pager";
+import { Pager } from "@/components/shared/pager";
 
 export default function ReviewQueuePage() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -16,7 +16,7 @@ export default function ReviewQueuePage() {
     clubPageQuery({
       statuses: ["submitted", "under_review"],
       search: "",
-      sort: "oldest",
+      sort: { field: "updated", order: "asc" },
       page,
     }),
   );
@@ -44,10 +44,7 @@ export default function ReviewQueuePage() {
 
   return (
     <div>
-      <PageMeta
-        title="Review queue | Club Setup"
-        description="Clubs waiting for review"
-      />
+      <PageMeta title="Review queue" description="Clubs waiting for review" />
       <PageBreadcrumb pageTitle="Review queue" />
 
       <Card className="w-full gap-0 overflow-hidden rounded-2xl border border-gray-200 bg-white p-0 sm:p-0 dark:border-gray-800 dark:bg-white/3">
@@ -63,7 +60,7 @@ export default function ReviewQueuePage() {
 
         <ClubsTable
           clubs={queue.data?.items}
-          isLoading={queue.isLoading}
+          isLoading={queue.isLoading || queue.isPlaceholderData}
           error={queue.error}
           showOwner
           timeColumn="waiting"

@@ -2,7 +2,8 @@ import { PageBreadcrumb } from "@/components/shared/page-breadcrumb";
 import { PageMeta } from "@/components/shared/page-meta";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Card } from "@/components/ui/card";
-import { Spinner } from "@/components/ui/spinner";
+import { TableSkeleton } from "@/components/shared/table-skeleton";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/contexts";
 import { OctagonAlertIcon } from "@/icons";
 import { apiFetch } from "@/lib/api";
@@ -45,11 +46,7 @@ export default function ClubDetailPage() {
   }
 
   if (!club.data || !requirements.data || !events.data) {
-    return (
-      <div className="flex justify-center py-12">
-        <Spinner className="size-6 text-brand-500" />
-      </div>
-    );
+    return <ClubDetailSkeleton />;
   }
 
   const isAdmin = user?.role === "admin";
@@ -59,7 +56,7 @@ export default function ClubDetailPage() {
   return (
     <div>
       <PageMeta
-        title={`${club.data.name} | Club Setup`}
+        title={`${club.data.name}`}
         description={club.data.description}
       />
       <PageBreadcrumb pageTitle={club.data.name} />
@@ -91,6 +88,22 @@ export default function ClubDetailPage() {
 
         <HistoryCard events={events.data} requirements={requirements.data} />
       </div>
+    </div>
+  );
+}
+
+/** The page's shape while its three requests load. */
+function ClubDetailSkeleton() {
+  return (
+    <div role="status" aria-label="Loading club" className="space-y-6">
+      <Skeleton className="h-7 w-48 bg-gray-200 dark:bg-gray-800" />
+      <Card className="space-y-3 rounded-2xl border border-gray-200 bg-white p-5 sm:p-6 dark:border-gray-800 dark:bg-white/3">
+        <Skeleton className="h-5 w-24 rounded-full bg-gray-200 dark:bg-gray-800" />
+        <Skeleton className="h-4 w-3/4 bg-gray-100 dark:bg-gray-800/60" />
+      </Card>
+      <Card className="overflow-hidden rounded-2xl border border-gray-200 bg-white p-0 sm:p-0 dark:border-gray-800 dark:bg-white/3">
+        <TableSkeleton label="Loading requirements" rows={6} />
+      </Card>
     </div>
   );
 }

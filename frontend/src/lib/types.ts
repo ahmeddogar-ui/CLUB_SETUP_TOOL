@@ -23,6 +23,9 @@ export interface Club {
   submitter_id: number;
 }
 
+export type ClubSortField = "name" | "owner" | "status" | "updated";
+export type SortOrder = "asc" | "desc";
+
 /** A club as the list endpoint returns it, with what the tables show. */
 export interface ClubListItem extends Club {
   owner_name: string;

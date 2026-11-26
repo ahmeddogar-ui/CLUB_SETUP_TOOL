@@ -66,7 +66,11 @@ Every schema change is an Alembic migration in `alembic/` at the repo root.
 two checklist items) and `club_events` (one row per action, newest first via
 `idx_events_club_time`). `refresh_tokens` stores SHA-256 hashes of login tokens.
 `idx_clubs_status_updated` serves lists filtered by status and sorted by last
-update (the review queue and the admin's status tabs).
+update (the review queue and the admin's status tabs),
+`idx_clubs_submitter_updated` a lead's own list, and `idx_clubs_updated
+(updated_at, id)` the admin's All tab, newest first (Postgres scans it
+backwards). Name and owner sorts are unindexed: they are occasional, and a
+sort over a few thousand rows is cheap.
 
 ### Club lifecycle
 
@@ -83,8 +87,13 @@ approved once all six are approved.
 ### Listing clubs
 
 `GET /api/clubs` returns one page: `{items, total, status_counts}`. It takes
-`status` (repeatable), `sort` (`oldest`/`newest`), `q` (case-insensitive name
-search; `%` and `_` match literally), `limit` (1–100, default 20) and `offset`.
+`status` (repeatable), `sort` (`name`/`owner`/`status`/`updated`) with
+`order` (`asc`/`desc`), `q` (case-insensitive name search; `%` and `_` match
+literally), `limit` (1–100, default 20) and `offset`. Without `sort` the order
+is creation order. Name and owner sort case-insensitively; status sorts in
+lifecycle order, because Postgres orders an enum by declaration. `id` breaks
+ties in the same direction, so `asc` and `desc` are exact reverses and paging
+never repeats or skips a club.
 Each item adds `owner_name`, `updated_at` and `documents_provided` /
 `documents_total` to the club. A page costs three queries whatever its size:
 the items (owner join plus correlated document counts), the filtered `total`,
@@ -134,7 +143,11 @@ change. Query keys are `["me", token]`, `["clubs", "list", filters]` (every
 club list: status, search, sort and page; built by `clubPageQuery`),
 `["clubs", id]`, `["clubs", id, "requirements"]` and `["clubs", id, "events"]`.
 Every club change goes through `useClubMutation`, which invalidates `["clubs"]`
-so all club data refetches. 4xx errors are not retried; 5xx and network errors
+so all club data refetches. Confirmation toasts (sonner) come from one place:
+`createQueryClient()` (`src/lib/query-client.ts`) gives the `QueryClient` a
+`MutationCache` whose `onSuccess` shows `mutation.meta.successMessage`, so a
+mutation states its message and no component calls `toast` for success. The
+tests build their client with the same function, so toasts are tested too. 4xx errors are not retried; 5xx and network errors
 retry up to three times.
 
 ### Sessions and 401s
@@ -165,6 +178,12 @@ refused, and shows the backend's message when something is.
 
 Every list pages through 20 clubs at a time, and every empty list says why
 and offers a next step (create a club, clear the filters, go to the first page).
+Lists keep the previous page as placeholder data (so the pager and counts
+don't jump) but show skeleton rows over it while the next page loads, so a
+stale page is never presented as current. Reject and request-changes take a
+second, explicit confirmation that repeats the note: both notify the lead and
+reject is final. Below the `md` breakpoint the clubs table drops its secondary
+columns rather than scrolling sideways.
 
 ## Deployment
 

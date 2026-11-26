@@ -20,6 +20,7 @@ export default function NewClubPage() {
   const createClub = useMutation({
     mutationFn: (data: ClubFormData) =>
       apiFetch<Club>("/clubs", { method: "POST", body: JSON.stringify(data) }),
+    meta: { successMessage: "Club created" },
     onSuccess: (club) => {
       void queryClient.invalidateQueries({ queryKey: ["clubs"] });
       void navigate(`/clubs/${club.id}`);
@@ -38,10 +39,7 @@ export default function NewClubPage() {
 
   return (
     <div>
-      <PageMeta
-        title="New club | Club Setup"
-        description="Register a new club"
-      />
+      <PageMeta title="New club" description="Register a new club" />
       <PageBreadcrumb pageTitle="New club" />
 
       <Card className="max-w-2xl rounded-2xl border border-gray-200 bg-white p-5 sm:p-6 dark:border-gray-800 dark:bg-white/3">

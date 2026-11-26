@@ -81,8 +81,14 @@ class User(Base):
 
 class Clubs(Base):
     __tablename__ = "clubs"
-    # Serves the admin review queue: filter by status, sort by updated_at.
-    __table_args__ = (Index("idx_clubs_status_updated", "status", "updated_at"),)
+    __table_args__ = (
+        # The review queue and status tabs: filter by status, sort by updated_at.
+        Index("idx_clubs_status_updated", "status", "updated_at"),
+        # A lead's own clubs, newest first.
+        Index("idx_clubs_submitter_updated", "submitter_id", "updated_at"),
+        # The admin's All tab, newest first (scanned backwards).
+        Index("idx_clubs_updated", "updated_at", "id"),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str]

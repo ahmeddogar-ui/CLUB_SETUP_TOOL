@@ -10,7 +10,7 @@ import {
 } from "@/test/builders";
 import { renderApp } from "@/test/render-app";
 import { server } from "@/test/server";
-import { screen, within } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { describe, expect, it, vi } from "vitest";
 
@@ -97,7 +97,81 @@ describe("club list", () => {
   });
 });
 
+describe("list loading states", () => {
+  it("shows skeleton rows while the next page loads", async () => {
+    let releaseSecondPage = () => {};
+    const secondPage = new Promise<void>((resolve) => {
+      releaseSecondPage = resolve;
+    });
+    server.use(
+      http.get("/api/clubs", async ({ request }) => {
+        const offset = new URL(request.url).searchParams.get("offset");
+        if (offset === "20") await secondPage;
+        const name = offset === "20" ? "Second page club" : "First page club";
+        return HttpResponse.json(
+          buildClubPage([buildClubListItem({ name })], { total: 25 }),
+        );
+      }),
+    );
+    const { user } = renderApp("/", { signedInAs: LEAD });
+    await screen.findByRole("link", { name: "First page club" });
+
+    await user.click(screen.getByRole("button", { name: "Next" }));
+
+    expect(
+      await screen.findByRole("status", { name: "Loading clubs" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: "First page club" }),
+    ).not.toBeInTheDocument();
+    releaseSecondPage();
+    expect(
+      await screen.findByRole("link", { name: "Second page club" }),
+    ).toBeInTheDocument();
+  });
+
+  it("puts the page name in the browser tab", async () => {
+    server.use(
+      http.get("/api/clubs", () => HttpResponse.json(buildClubPage([]))),
+    );
+    renderApp("/review", { signedInAs: ADMIN });
+
+    await waitFor(() =>
+      expect(document.title).toBe("Review queue · Club Setup"),
+    );
+  });
+});
+
 describe("all clubs (admin)", () => {
+  it("sorts by a column on the server, flipping the order on a second click", async () => {
+    const queries: URLSearchParams[] = [];
+    server.use(
+      http.get("/api/clubs", ({ request }) => {
+        queries.push(new URL(request.url).searchParams);
+        return HttpResponse.json(buildClubPage([buildClubListItem()]));
+      }),
+    );
+    const { user } = renderApp("/", { signedInAs: ADMIN });
+    await screen.findByRole("link", { name: "Chess Club" });
+    expect(queries.at(-1)?.get("sort")).toBe("updated");
+    expect(queries.at(-1)?.get("order")).toBe("desc");
+
+    await user.click(screen.getByRole("button", { name: /^Club/ }));
+    await waitFor(() => expect(queries.at(-1)?.get("sort")).toBe("name"));
+    expect(queries.at(-1)?.get("order")).toBe("asc");
+    expect(screen.getByRole("columnheader", { name: /^Club/ })).toHaveAttribute(
+      "aria-sort",
+      "ascending",
+    );
+
+    await user.click(screen.getByRole("button", { name: /^Club/ }));
+    await waitFor(() => expect(queries.at(-1)?.get("order")).toBe("desc"));
+    expect(screen.getByRole("columnheader", { name: /^Club/ })).toHaveAttribute(
+      "aria-sort",
+      "descending",
+    );
+  });
+
   function serveAllClubs(page = buildClubPage([])) {
     const queries: URLSearchParams[] = [];
     server.use(
@@ -231,7 +305,8 @@ describe("review queue", () => {
       await screen.findByRole("link", { name: "Chess Club" }),
     ).toBeInTheDocument();
     expect(query?.getAll("status")).toEqual(["submitted", "under_review"]);
-    expect(query?.get("sort")).toBe("oldest");
+    expect(query?.get("sort")).toBe("updated");
+    expect(query?.get("order")).toBe("asc");
     expect(screen.getByText("3 days")).toBeInTheDocument();
     expect(screen.getByText("Less than a day")).toBeInTheDocument();
   });

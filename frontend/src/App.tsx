@@ -8,27 +8,31 @@ import ReviewQueuePage from "@/pages/main/clubs/review-queue-page";
 import { Error404Page } from "@/pages/main/pages";
 import { AuthLayout, SignInPage, SignUpPage } from "@/pages/others/auth";
 import { Route, Routes } from "react-router";
+import { Toaster } from "sonner";
 
 export default function App() {
   return (
-    <Routes>
-      <Route element={<RequireAuth />}>
-        <Route element={<AppLayout />}>
-          <Route index element={<ClubsPage />} />
-          <Route path="/clubs/new" element={<NewClubPage />} />
-          <Route path="/clubs/:clubId" element={<ClubDetailPage />} />
-          <Route element={<RequireAdmin />}>
-            <Route path="/review" element={<ReviewQueuePage />} />
+    <>
+      <Toaster position="top-right" richColors closeButton />
+      <Routes>
+        <Route element={<RequireAuth />}>
+          <Route element={<AppLayout />}>
+            <Route index element={<ClubsPage />} />
+            <Route path="/clubs/new" element={<NewClubPage />} />
+            <Route path="/clubs/:clubId" element={<ClubDetailPage />} />
+            <Route element={<RequireAdmin />}>
+              <Route path="/review" element={<ReviewQueuePage />} />
+            </Route>
           </Route>
         </Route>
-      </Route>
 
-      <Route element={<AuthLayout />}>
-        <Route path="/signin" element={<SignInPage />} />
-        <Route path="/signup" element={<SignUpPage />} />
-      </Route>
+        <Route element={<AuthLayout />}>
+          <Route path="/signin" element={<SignInPage />} />
+          <Route path="/signup" element={<SignUpPage />} />
+        </Route>
 
-      <Route path="*" element={<Error404Page />} />
-    </Routes>
+        <Route path="*" element={<Error404Page />} />
+      </Routes>
+    </>
   );
 }

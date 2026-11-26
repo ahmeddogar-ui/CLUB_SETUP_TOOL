@@ -20,8 +20,9 @@ from app.schemas import (
     NoteRequest,
 )
 from app.services.clubs import (
-    ClubSort,
+    ClubSortField,
     ClubSummary,
+    SortOrder,
     create_club_for_user,
     get_club_for_user,
     list_club_events,
@@ -49,7 +50,8 @@ def list_clubs(
     db: DbSession,
     current_user: User = Depends(get_current_user),
     status_filter: list[ClubStatus] | None = Query(default=None, alias="status"),
-    sort: ClubSort | None = None,
+    sort: ClubSortField | None = None,
+    order: SortOrder = SortOrder.asc,
     q: str | None = Query(default=None, max_length=SEARCH_MAX_LENGTH),
     limit: int = Query(default=PAGE_SIZE_DEFAULT, ge=1, le=PAGE_SIZE_MAX),
     offset: int = Query(default=0, ge=0),
@@ -59,6 +61,7 @@ def list_clubs(
         current_user,
         statuses=status_filter,
         sort=sort,
+        order=order,
         search=q,
         limit=limit,
         offset=offset,

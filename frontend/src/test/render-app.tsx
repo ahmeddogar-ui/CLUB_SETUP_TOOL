@@ -3,7 +3,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, ThemeProvider } from "@/contexts";
 import { TOKEN_KEY } from "@/lib/api";
 import type { User } from "@/lib/types";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { createQueryClient } from "@/lib/query-client";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { render } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
@@ -27,9 +28,7 @@ export function renderApp(
     server.use(http.get("/api/auth/me", () => HttpResponse.json(signedInAs)));
   }
 
-  const queryClient = new QueryClient({
-    defaultOptions: { queries: { retry: false } },
-  });
+  const queryClient = createQueryClient({ retry: false });
 
   const user = userEvent.setup();
   const result = render(

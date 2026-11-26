@@ -31,9 +31,25 @@ INITIAL_REQUIREMENTS = (
 )
 
 
-class ClubSort(str, Enum):
-    oldest = "oldest"
-    newest = "newest"
+class ClubSortField(str, Enum):
+    name = "name"
+    owner = "owner"
+    status = "status"
+    updated = "updated"
+
+
+class SortOrder(str, Enum):
+    asc = "asc"
+    desc = "desc"
+
+
+# Status sorts in lifecycle order: Postgres orders an enum by declaration.
+_SORT_COLUMNS = {
+    ClubSortField.name: func.lower(Clubs.name),
+    ClubSortField.owner: func.lower(User.name),
+    ClubSortField.status: Clubs.status,
+    ClubSortField.updated: Clubs.updated_at,
+}
 
 
 def create_club_for_user(db: Session, user: User, name: str, description: str) -> Clubs:
@@ -117,7 +133,8 @@ def list_clubs_for_user(
     db: Session,
     user: User,
     statuses: list[ClubStatus] | None,
-    sort: ClubSort | None,
+    sort: ClubSortField | None,
+    order: SortOrder,
     search: str | None,
     limit: int,
     offset: int,
@@ -134,8 +151,7 @@ def list_clubs_for_user(
         query = query.filter(_name_contains(search))
 
     rows = (
-        _ordered(query, sort)
-        .join(User, User.id == Clubs.submitter_id)
+        _ordered(query.join(User, User.id == Clubs.submitter_id), sort, order)
         .add_columns(
             User.name,
             _document_count(Requirement.status.in_(DOCUMENT_PROVIDED_STATUSES)),
@@ -163,14 +179,16 @@ def _count_by_status(visible: Query[Clubs]) -> dict[ClubStatus, int]:
     return {status: counts.get(status, 0) for status in ClubStatus}
 
 
-def _ordered(query: Query[Clubs], sort: ClubSort | None) -> Query[Clubs]:
-    if sort == ClubSort.oldest:
-        # Longest-waiting first; id breaks ties between identical timestamps.
-        return query.order_by(Clubs.updated_at.asc(), Clubs.id.asc())
-    if sort == ClubSort.newest:
-        # Most recently changed first; the exact reverse of oldest.
-        return query.order_by(Clubs.updated_at.desc(), Clubs.id.desc())
-    return query.order_by(Clubs.id.asc())
+def _ordered(
+    query: Query[Clubs], sort: ClubSortField | None, order: SortOrder
+) -> Query[Clubs]:
+    """Creation order unless a column is chosen. id breaks ties in the same
+    direction, so asc and desc are exact reverses and paging is stable."""
+    if sort is None:
+        return query.order_by(Clubs.id.asc())
+    if order == SortOrder.asc:
+        return query.order_by(_SORT_COLUMNS[sort].asc(), Clubs.id.asc())
+    return query.order_by(_SORT_COLUMNS[sort].desc(), Clubs.id.desc())
 
 
 def get_club(db: Session, club_id: int) -> Clubs:
