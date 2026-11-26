@@ -104,6 +104,15 @@ submit guard). A club's `updated_at` moves on every status change, edit and
 new document link; reviewing a requirement doesn't move it, so the review
 queue's "waiting" time is the time since the last status change.
 
+`GET /api/clubs/export.csv` (admins only) returns every club matching the same
+`status`, `q`, `sort` and `order` filters as the list, unpaged, through the same
+filtering and summary query (`export_clubs`). The CSV is rendered in the router
+because it is a transport format, not business logic; the service returns the
+same `ClubSummary` rows the list uses. Text cells (club and owner names, which
+users control) that start with `=`, `+`, `-`, `@`, tab or carriage return get a
+leading `'`, so a spreadsheet shows them as text instead of running them as a
+formula.
+
 ### Auth
 
 - `POST /api/auth/login` checks the password (Argon2) and returns a 30-minute

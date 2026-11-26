@@ -1,4 +1,7 @@
-from fastapi import APIRouter, Depends, Query, status
+import csv
+import io
+
+from fastapi import APIRouter, Depends, Query, Response, status
 
 from app.core.security import get_current_user, require_role
 from app.database import DbSession
@@ -24,6 +27,7 @@ from app.services.clubs import (
     ClubSummary,
     SortOrder,
     create_club_for_user,
+    export_clubs,
     get_club_for_user,
     list_club_events,
     list_clubs_for_user,
@@ -34,6 +38,18 @@ from app.services.clubs import (
 )
 
 router = APIRouter(prefix="/clubs", tags=["clubs"])
+
+EXPORT_HEADER = (
+    "id",
+    "name",
+    "status",
+    "owner",
+    "documents_provided",
+    "documents_total",
+    "updated_at",
+)
+# Spreadsheets run a cell starting with one of these as a formula.
+FORMULA_TRIGGER_CHARACTERS = ("=", "+", "-", "@", "\t", "\r")
 
 
 @router.post("", response_model=ClubOut, status_code=status.HTTP_201_CREATED)
@@ -86,6 +102,48 @@ def _list_item(summary: ClubSummary) -> ClubListItemOut:
         documents_provided=summary.documents_provided,
         documents_total=summary.documents_total,
     )
+
+
+@router.get("/export.csv")
+def export_clubs_csv(
+    db: DbSession,
+    current_user: User = Depends(require_role(UserRole.admin)),
+    status_filter: list[ClubStatus] | None = Query(default=None, alias="status"),
+    sort: ClubSortField | None = None,
+    order: SortOrder = SortOrder.asc,
+    q: str | None = Query(default=None, max_length=SEARCH_MAX_LENGTH),
+):
+    summaries = export_clubs(
+        db, current_user, statuses=status_filter, sort=sort, order=order, search=q
+    )
+    buffer = io.StringIO()
+    writer = csv.writer(buffer)
+    writer.writerow(EXPORT_HEADER)
+    for summary in summaries:
+        club = summary.club
+        writer.writerow(
+            [
+                club.id,
+                _neutralize_formula(club.name),
+                club.status.value,
+                _neutralize_formula(summary.owner_name),
+                summary.documents_provided,
+                summary.documents_total,
+                club.updated_at.isoformat(),
+            ]
+        )
+    return Response(
+        buffer.getvalue(),
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": 'attachment; filename="clubs.csv"'},
+    )
+
+
+def _neutralize_formula(text: str) -> str:
+    """Prefix a quote so a spreadsheet shows the text instead of running it."""
+    if text.startswith(FORMULA_TRIGGER_CHARACTERS):
+        return f"'{text}"
+    return text
 
 
 @router.get("/{club_id}", response_model=ClubOut)

@@ -4,14 +4,17 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useAuth } from "@/contexts";
 import { PlusIcon } from "@/icons";
+import { apiDownload } from "@/lib/api";
 import { isClubStatus } from "@/lib/labels";
 import type { ClubPage, ClubStatus } from "@/lib/types";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { Link, useSearchParams } from "react-router";
+import { toast } from "sonner";
 import { ClubFilters } from "./club-filters";
 import {
   CLUBS_PAGE_SIZE,
   type ClubSort,
+  clubFilterParams,
   clubPageQuery,
   readPage,
   readSort,
@@ -34,14 +37,17 @@ export default function ClubsPage() {
   const page = readPage(searchParams);
   const sort = readSort(searchParams);
 
-  const clubs = useQuery(
-    clubPageQuery({
-      statuses: status ? [status] : [],
-      search,
-      sort,
-      page,
-    }),
-  );
+  const statuses = status ? [status] : [];
+  const clubs = useQuery(clubPageQuery({ statuses, search, sort, page }));
+  const exportClubs = useMutation({
+    mutationFn: () =>
+      apiDownload(
+        `/clubs/export.csv?${clubFilterParams({ statuses, search, sort })}`,
+        "clubs.csv",
+      ),
+    meta: { successMessage: "Export downloaded" },
+    onError: (error) => toast.error(error.message),
+  });
 
   // A new filter or sort starts again from page 1.
   const showList = (list: {
@@ -91,7 +97,21 @@ export default function ClubsPage() {
 
       <Card className="w-full gap-0 overflow-hidden rounded-2xl border border-gray-200 bg-white p-0 sm:p-0 dark:border-gray-800 dark:bg-white/3">
         {isAdmin ? (
-          <ClubFilters status={status} search={search} onChange={showFilters} />
+          <ClubFilters
+            status={status}
+            search={search}
+            onChange={showFilters}
+            actions={
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={exportClubs.isPending}
+                onClick={() => exportClubs.mutate()}
+              >
+                Export CSV
+              </Button>
+            }
+          />
         ) : (
           <div className="flex justify-end px-4 py-4 sm:px-6">
             <NewClubButton label="New club" />

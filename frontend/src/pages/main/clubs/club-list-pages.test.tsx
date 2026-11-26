@@ -311,6 +311,78 @@ describe("all clubs (admin)", () => {
   });
 });
 
+describe("export (admin)", () => {
+  function serveExport() {
+    Object.assign(URL, {
+      createObjectURL: vi.fn(() => "blob:clubs"),
+      revokeObjectURL: vi.fn(),
+    });
+    const click = vi
+      .spyOn(HTMLAnchorElement.prototype, "click")
+      .mockImplementation(() => undefined);
+    const queries: URLSearchParams[] = [];
+    server.use(
+      http.get("/api/clubs", () => HttpResponse.json(buildClubPage([]))),
+      http.get("/api/clubs/export.csv", ({ request }) => {
+        queries.push(new URL(request.url).searchParams);
+        return new HttpResponse("id,name\n", {
+          headers: { "Content-Type": "text/csv" },
+        });
+      }),
+    );
+    return { queries, click };
+  }
+
+  it("downloads the clubs matching the status and search on screen", async () => {
+    const { queries, click } = serveExport();
+    const { user } = renderApp(
+      "/?status=submitted&q=chess&sort=name&order=desc",
+      {
+        signedInAs: ADMIN,
+      },
+    );
+
+    await user.click(await screen.findByRole("button", { name: "Export CSV" }));
+
+    await vi.waitFor(() => expect(queries).toHaveLength(1));
+    expect(queries[0].getAll("status")).toEqual(["submitted"]);
+    expect(queries[0].get("q")).toBe("chess");
+    expect(queries[0].get("sort")).toBe("name");
+    expect(queries[0].get("order")).toBe("desc");
+    expect(queries[0].has("limit")).toBe(false);
+    expect(queries[0].has("offset")).toBe(false);
+    expect(click).toHaveBeenCalledOnce();
+    expect(await screen.findByText("Export downloaded")).toBeInTheDocument();
+  });
+
+  it("shows the backend's message when the export fails", async () => {
+    serveExport();
+    server.use(
+      http.get("/api/clubs/export.csv", () =>
+        HttpResponse.json({ detail: "Database unavailable" }, { status: 503 }),
+      ),
+    );
+    const { user } = renderApp("/", { signedInAs: ADMIN });
+
+    await user.click(await screen.findByRole("button", { name: "Export CSV" }));
+
+    expect(await screen.findByText("Database unavailable")).toBeInTheDocument();
+    expect(screen.queryByText("Export downloaded")).not.toBeInTheDocument();
+  });
+
+  it("is not offered to a club lead", async () => {
+    server.use(
+      http.get("/api/clubs", () => HttpResponse.json(buildClubPage([]))),
+    );
+    renderApp("/", { signedInAs: LEAD });
+
+    await screen.findByText("No clubs yet");
+    expect(
+      screen.queryByRole("button", { name: "Export CSV" }),
+    ).not.toBeInTheDocument();
+  });
+});
+
 describe("review queue", () => {
   it("asks for submitted and under-review clubs, oldest first, and shows how long each has waited", async () => {
     let query: URLSearchParams | undefined;

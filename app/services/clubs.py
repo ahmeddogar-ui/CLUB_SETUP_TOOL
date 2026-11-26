@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from enum import Enum
+from typing import Any
 
 from sqlalchemy import ColumnElement, ScalarSelect, func, select
 from sqlalchemy.orm import Query, Session
@@ -129,6 +130,45 @@ def _name_contains(search: str) -> ColumnElement[bool]:
     return Clubs.name.ilike(f"%{escaped}%", escape="\\")
 
 
+def _visible_clubs(db: Session, user: User) -> Query[Clubs]:
+    """Role scoping; the filters applied on top only ever narrow this set."""
+    visible = db.query(Clubs)
+    if user.role != UserRole.admin:
+        visible = visible.filter(Clubs.submitter_id == user.id)
+    return visible
+
+
+def _filtered(
+    visible: Query[Clubs], statuses: list[ClubStatus] | None, search: str | None
+) -> Query[Clubs]:
+    query = visible
+    if statuses:
+        query = query.filter(Clubs.status.in_(statuses))
+    if search:
+        query = query.filter(_name_contains(search))
+    return query
+
+
+def _summaries(
+    query: Query[Clubs], sort: ClubSortField | None, order: SortOrder
+) -> Query[Any]:
+    """The filtered clubs in order, with owner name and document counts."""
+    return _ordered(
+        query.join(User, User.id == Clubs.submitter_id), sort, order
+    ).add_columns(
+        User.name,
+        _document_count(Requirement.status.in_(DOCUMENT_PROVIDED_STATUSES)),
+        _document_count(),
+    )
+
+
+def _to_summaries(rows: list[Any]) -> list[ClubSummary]:
+    return [
+        ClubSummary(club, owner_name, provided, total)
+        for club, owner_name, provided, total in rows
+    ]
+
+
 def list_clubs_for_user(
     db: Session,
     user: User,
@@ -139,36 +179,27 @@ def list_clubs_for_user(
     limit: int,
     offset: int,
 ) -> ClubPage:
-    visible = db.query(Clubs)
-    # Role scoping first; the filters below only ever narrow this set.
-    if user.role != UserRole.admin:
-        visible = visible.filter(Clubs.submitter_id == user.id)
-
-    query = visible
-    if statuses:
-        query = query.filter(Clubs.status.in_(statuses))
-    if search:
-        query = query.filter(_name_contains(search))
-
-    rows = (
-        _ordered(query.join(User, User.id == Clubs.submitter_id), sort, order)
-        .add_columns(
-            User.name,
-            _document_count(Requirement.status.in_(DOCUMENT_PROVIDED_STATUSES)),
-            _document_count(),
-        )
-        .limit(limit)
-        .offset(offset)
-        .all()
-    )
+    visible = _visible_clubs(db, user)
+    query = _filtered(visible, statuses, search)
+    rows = _summaries(query, sort, order).limit(limit).offset(offset).all()
     return ClubPage(
-        items=[
-            ClubSummary(club, owner_name, provided, total)
-            for club, owner_name, provided, total in rows
-        ],
+        items=_to_summaries(rows),
         total=query.count(),
         status_counts=_count_by_status(visible),
     )
+
+
+def export_clubs(
+    db: Session,
+    user: User,
+    statuses: list[ClubStatus] | None,
+    sort: ClubSortField | None,
+    order: SortOrder,
+    search: str | None,
+) -> list[ClubSummary]:
+    """Every club matching the filters, unpaged."""
+    query = _filtered(_visible_clubs(db, user), statuses, search)
+    return _to_summaries(_summaries(query, sort, order).all())
 
 
 def _count_by_status(visible: Query[Clubs]) -> dict[ClubStatus, int]:

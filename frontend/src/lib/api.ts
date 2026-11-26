@@ -45,10 +45,9 @@ async function refreshAccessToken(): Promise<boolean> {
   return true;
 }
 
-export async function apiFetch<T>(
-  path: string,
-  options: RequestInit = {},
-): Promise<T> {
+/** Sends the request with the stored token, refreshing an expired one once,
+ * and throws ApiError for any failed response. */
+async function request(path: string, options: RequestInit): Promise<Response> {
   let response = await send(path, options);
 
   const isExpiredSession =
@@ -68,7 +67,28 @@ export async function apiFetch<T>(
     const body = await response.json().catch(() => null);
     throw new ApiError(response.status, readDetail(body?.detail));
   }
+  return response;
+}
 
+export async function apiFetch<T>(
+  path: string,
+  options: RequestInit = {},
+): Promise<T> {
+  const response = await request(path, options);
   if (response.status === 204) return undefined as T;
   return response.json();
+}
+
+/** Downloads the response as a file the browser saves under `filename`. */
+export async function apiDownload(
+  path: string,
+  filename: string,
+): Promise<void> {
+  const response = await request(path, {});
+  const url = URL.createObjectURL(await response.blob());
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
 }
