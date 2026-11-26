@@ -61,6 +61,10 @@ class RequirementStatus(str, Enum):
     rejected = "rejected"
 
 
+# A document counts as provided once a link is in and hasn't been rejected.
+DOCUMENT_PROVIDED_STATUSES = (RequirementStatus.submitted, RequirementStatus.approved)
+
+
 class User(Base):
     __tablename__ = "users"
     __table_args__ = (CheckConstraint("email = lower(email)", name="email_lowercase"),)

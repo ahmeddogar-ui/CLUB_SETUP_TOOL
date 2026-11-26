@@ -1,24 +1,34 @@
 import {
   ADMIN,
   buildClub,
+  buildClubListItem,
+  buildClubPage,
   buildEvent,
   buildRequirements,
+  daysAgo,
   LEAD,
 } from "@/test/builders";
 import { renderApp } from "@/test/render-app";
 import { server } from "@/test/server";
-import { screen } from "@testing-library/react";
+import { screen, within } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 describe("club list", () => {
-  it("lists the lead's clubs with their status and offers to create one", async () => {
+  it("lists the lead's clubs with status, document progress and last update", async () => {
     server.use(
       http.get("/api/clubs", () =>
-        HttpResponse.json([
-          buildClub({ id: 1, name: "Chess Club" }),
-          buildClub({ id: 2, name: "Film Club", status: "approved" }),
-        ]),
+        HttpResponse.json(
+          buildClubPage([
+            buildClubListItem({
+              id: 1,
+              name: "Chess Club",
+              documents_provided: 3,
+              updated_at: daysAgo(2),
+            }),
+            buildClubListItem({ id: 2, name: "Film Club", status: "approved" }),
+          ]),
+        ),
       ),
     );
     renderApp("/", { signedInAs: LEAD });
@@ -26,28 +36,28 @@ describe("club list", () => {
     expect(
       await screen.findByRole("link", { name: "Chess Club" }),
     ).toHaveAttribute("href", "/clubs/1");
-    expect(screen.getByRole("link", { name: "Film Club" })).toHaveAttribute(
-      "href",
-      "/clubs/2",
-    );
     expect(screen.getByText("Approved")).toBeInTheDocument();
+    expect(screen.getByText("3/4 documents")).toBeInTheDocument();
+    expect(screen.getAllByText("2 days ago")).toHaveLength(2);
+    expect(
+      screen.queryByRole("columnheader", { name: "Owner" }),
+    ).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /new club/i })).toHaveAttribute(
       "href",
       "/clubs/new",
     );
   });
 
-  it("does not offer club creation to an admin", async () => {
-    server.use(http.get("/api/clubs", () => HttpResponse.json([])));
-    renderApp("/", { signedInAs: ADMIN });
+  it("invites a lead with no clubs to create one", async () => {
+    server.use(
+      http.get("/api/clubs", () => HttpResponse.json(buildClubPage([]))),
+    );
+    renderApp("/", { signedInAs: LEAD });
 
-    expect(
-      await screen.findByRole("heading", { name: "All clubs" }),
-    ).toBeInTheDocument();
     expect(await screen.findByText("No clubs yet")).toBeInTheDocument();
     expect(
-      screen.queryByRole("button", { name: /new club/i }),
-    ).not.toBeInTheDocument();
+      screen.getByRole("button", { name: "Create your first club" }),
+    ).toHaveAttribute("href", "/clubs/new");
   });
 
   it("shows the backend's message when the list fails to load", async () => {
@@ -61,15 +71,158 @@ describe("club list", () => {
     expect(await screen.findByText("Could not load clubs")).toBeInTheDocument();
     expect(screen.getByText("Database unavailable")).toBeInTheDocument();
   });
+
+  it("pages through a long list", async () => {
+    const offsets: (string | null)[] = [];
+    server.use(
+      http.get("/api/clubs", ({ request }) => {
+        const offset = new URL(request.url).searchParams.get("offset");
+        offsets.push(offset);
+        const name = offset === "20" ? "Second page club" : "First page club";
+        return HttpResponse.json(
+          buildClubPage([buildClubListItem({ name })], { total: 25 }),
+        );
+      }),
+    );
+    const { user } = renderApp("/", { signedInAs: LEAD });
+
+    expect(await screen.findByText("1–20 of 25")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Next page" }));
+
+    expect(
+      await screen.findByRole("link", { name: "Second page club" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("21–25 of 25")).toBeInTheDocument();
+    expect(offsets).toEqual(["0", "20"]);
+  });
+});
+
+describe("all clubs (admin)", () => {
+  function serveAllClubs(page = buildClubPage([])) {
+    const queries: URLSearchParams[] = [];
+    server.use(
+      http.get("/api/clubs", ({ request }) => {
+        queries.push(new URL(request.url).searchParams);
+        return HttpResponse.json(page);
+      }),
+    );
+    return queries;
+  }
+
+  it("shows each club's owner and no redundant card heading", async () => {
+    serveAllClubs(
+      buildClubPage([buildClubListItem({ owner_name: "Lena Lead" })]),
+    );
+    renderApp("/", { signedInAs: ADMIN });
+
+    expect(
+      await screen.findByRole("columnheader", { name: "Owner" }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("cell", { name: "Lena Lead" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "All clubs" }),
+    ).toBeInTheDocument();
+    expect(
+      document.querySelector("[data-slot=card-title]"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /new club/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("summarises how many clubs are in each status", async () => {
+    serveAllClubs(
+      buildClubPage([], {
+        status_counts: {
+          drafting: 4,
+          submitted: 2,
+          under_review: 1,
+          changes_requested: 0,
+          approved: 7,
+          rejected: 1,
+        },
+      }),
+    );
+    renderApp("/", { signedInAs: ADMIN });
+
+    const summary = await screen.findByRole("region", {
+      name: "Clubs by status",
+    });
+    expect(within(summary).getByText("Approved").nextSibling).toHaveTextContent(
+      "7",
+    );
+    expect(within(summary).getByText("Drafting").nextSibling).toHaveTextContent(
+      "4",
+    );
+  });
+
+  it("filters by status on the server and starts again from the first page", async () => {
+    const queries = serveAllClubs(
+      buildClubPage([buildClubListItem()], { total: 45 }),
+    );
+    const { user } = renderApp("/", { signedInAs: ADMIN });
+
+    await user.click(await screen.findByRole("button", { name: "Next page" }));
+    await user.click(screen.getByRole("button", { name: "Under review" }));
+
+    const last = queries.at(-1);
+    expect(last?.getAll("status")).toEqual(["under_review"]);
+    expect(last?.get("offset")).toBe("0");
+    expect(
+      screen.getByRole("button", { name: "Under review" }),
+    ).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("searches by name on the server", async () => {
+    const queries = serveAllClubs();
+    const { user } = renderApp("/", { signedInAs: ADMIN });
+
+    await user.type(
+      await screen.findByRole("searchbox", { name: "Search clubs by name" }),
+      "chess",
+    );
+    await user.click(screen.getByRole("button", { name: "Search" }));
+
+    await vi.waitFor(() => expect(queries.at(-1)?.get("q")).toBe("chess"));
+  });
+
+  it("offers to clear the filters when nothing matches", async () => {
+    const queries = serveAllClubs();
+    const { user } = renderApp("/?status=rejected&q=zzz", {
+      signedInAs: ADMIN,
+    });
+
+    expect(await screen.findByText("No clubs match")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Clear filters" }));
+
+    await vi.waitFor(() => {
+      expect(queries.at(-1)?.get("q")).toBeNull();
+      expect(queries.at(-1)?.getAll("status")).toEqual([]);
+    });
+  });
 });
 
 describe("review queue", () => {
-  it("asks the backend for submitted and under-review clubs, oldest first", async () => {
+  it("asks for submitted and under-review clubs, oldest first, and shows how long each has waited", async () => {
     let query: URLSearchParams | undefined;
     server.use(
       http.get("/api/clubs", ({ request }) => {
         query = new URL(request.url).searchParams;
-        return HttpResponse.json([buildClub({ status: "submitted" })]);
+        return HttpResponse.json(
+          buildClubPage([
+            buildClubListItem({
+              name: "Chess Club",
+              status: "submitted",
+              updated_at: daysAgo(3),
+            }),
+            buildClubListItem({
+              id: 11,
+              name: "Film Club",
+              status: "under_review",
+              updated_at: daysAgo(0),
+            }),
+          ]),
+        );
       }),
     );
     renderApp("/review", { signedInAs: ADMIN });
@@ -79,6 +232,22 @@ describe("review queue", () => {
     ).toBeInTheDocument();
     expect(query?.getAll("status")).toEqual(["submitted", "under_review"]);
     expect(query?.get("sort")).toBe("oldest");
+    expect(screen.getByText("3 days")).toBeInTheDocument();
+    expect(screen.getByText("Less than a day")).toBeInTheDocument();
+  });
+
+  it("points to all clubs when nothing is waiting", async () => {
+    server.use(
+      http.get("/api/clubs", () => HttpResponse.json(buildClubPage([]))),
+    );
+    renderApp("/review", { signedInAs: ADMIN });
+
+    expect(
+      await screen.findByText("Nothing waiting for review"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "View all clubs" }),
+    ).toHaveAttribute("href", "/");
   });
 });
 

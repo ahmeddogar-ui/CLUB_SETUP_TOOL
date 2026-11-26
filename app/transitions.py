@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 
 from app.exceptions import Conflict, Forbidden
 from app.models import (
+    DOCUMENT_PROVIDED_STATUSES,
     ClubEvent,
     Clubs,
     ClubStatus,
@@ -48,8 +49,7 @@ def _submission_blockers(club: Clubs, requirements: list[Requirement]) -> list[s
         requirement.requirement_type.value
         for requirement in requirements
         if requirement.kind == RequirementKind.document
-        and requirement.status
-        in (RequirementStatus.pending, RequirementStatus.rejected)
+        and requirement.status not in DOCUMENT_PROVIDED_STATUSES
     ]
     return missing
 

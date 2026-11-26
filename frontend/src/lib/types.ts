@@ -23,6 +23,21 @@ export interface Club {
   submitter_id: number;
 }
 
+/** A club as the list endpoint returns it, with what the tables show. */
+export interface ClubListItem extends Club {
+  owner_name: string;
+  updated_at: string;
+  documents_provided: number;
+  documents_total: number;
+}
+
+/** One page of GET /clubs. `status_counts` ignores the filters. */
+export interface ClubPage {
+  items: ClubListItem[];
+  total: number;
+  status_counts: Record<ClubStatus, number>;
+}
+
 export type RequirementType =
   | "constitution"
   | "exec_list"

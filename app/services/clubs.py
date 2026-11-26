@@ -1,9 +1,12 @@
+from dataclasses import dataclass
 from enum import Enum
 
-from sqlalchemy.orm import Session
+from sqlalchemy import ColumnElement, ScalarSelect, func, select
+from sqlalchemy.orm import Query, Session
 
 from app.exceptions import Conflict, Forbidden, NotFound
 from app.models import (
+    DOCUMENT_PROVIDED_STATUSES,
     ClubEvent,
     Clubs,
     ClubStatus,
@@ -72,31 +75,102 @@ def create_club_for_user(db: Session, user: User, name: str, description: str) -
     return club
 
 
+@dataclass(frozen=True)
+class ClubSummary:
+    club: Clubs
+    owner_name: str
+    documents_provided: int
+    documents_total: int
+
+
+@dataclass(frozen=True)
+class ClubPage:
+    items: list[ClubSummary]
+    # How many clubs match the filters, across all pages.
+    total: int
+    # Every club the user can see, by status, ignoring the filters.
+    status_counts: dict[ClubStatus, int]
+
+
+def _document_count(*conditions: ColumnElement[bool]) -> ScalarSelect[int]:
+    """Per-club count of document requirements, run only for the clubs on the
+    page (a correlated subquery), so a page costs the same queries at any size."""
+    return (
+        select(func.count())
+        .where(
+            Requirement.club_id == Clubs.id,
+            Requirement.kind == RequirementKind.document,
+            *conditions,
+        )
+        .correlate(Clubs)
+        .scalar_subquery()
+    )
+
+
+def _name_contains(search: str) -> ColumnElement[bool]:
+    """Case-insensitive substring match; % and _ in the search match literally."""
+    escaped = search.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+    return Clubs.name.ilike(f"%{escaped}%", escape="\\")
+
+
 def list_clubs_for_user(
     db: Session,
     user: User,
-    statuses: list[ClubStatus] | None = None,
-    sort: ClubSort | None = None,
-) -> list[Clubs]:
-    query = db.query(Clubs)
-
+    statuses: list[ClubStatus] | None,
+    sort: ClubSort | None,
+    search: str | None,
+    limit: int,
+    offset: int,
+) -> ClubPage:
+    visible = db.query(Clubs)
     # Role scoping first; the filters below only ever narrow this set.
     if user.role != UserRole.admin:
-        query = query.filter(Clubs.submitter_id == user.id)
+        visible = visible.filter(Clubs.submitter_id == user.id)
 
+    query = visible
     if statuses:
         query = query.filter(Clubs.status.in_(statuses))
+    if search:
+        query = query.filter(_name_contains(search))
 
+    rows = (
+        _ordered(query, sort)
+        .join(User, User.id == Clubs.submitter_id)
+        .add_columns(
+            User.name,
+            _document_count(Requirement.status.in_(DOCUMENT_PROVIDED_STATUSES)),
+            _document_count(),
+        )
+        .limit(limit)
+        .offset(offset)
+        .all()
+    )
+    return ClubPage(
+        items=[
+            ClubSummary(club, owner_name, provided, total)
+            for club, owner_name, provided, total in rows
+        ],
+        total=query.count(),
+        status_counts=_count_by_status(visible),
+    )
+
+
+def _count_by_status(visible: Query[Clubs]) -> dict[ClubStatus, int]:
+    rows = (
+        visible.with_entities(Clubs.status, func.count()).group_by(Clubs.status).all()
+    )
+    counts = {status: count for status, count in rows}
+    return {status: counts.get(status, 0) for status in ClubStatus}
+
+
+def _ordered(query: Query[Clubs], sort: ClubSort | None) -> Query[Clubs]:
     if sort == ClubSort.oldest:
         # Longest-waiting first; id breaks ties between identical timestamps.
-        query = query.order_by(Clubs.updated_at.asc(), Clubs.id.asc())
-    elif sort == ClubSort.newest:
+        return query.order_by(Clubs.updated_at.asc(), Clubs.id.asc())
+    if sort == ClubSort.newest:
         # Most recently changed first; the exact reverse of oldest.
-        query = query.order_by(Clubs.updated_at.desc(), Clubs.id.desc())
-    else:
-        query = query.order_by(Clubs.id.asc())
-
-    return query.all()
+        return query.order_by(Clubs.updated_at.desc(), Clubs.id.desc())
+    return query.order_by(Clubs.id.asc())
 
 
 def get_club(db: Session, club_id: int) -> Clubs:

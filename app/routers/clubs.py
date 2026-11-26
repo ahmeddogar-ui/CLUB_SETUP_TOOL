@@ -8,14 +8,20 @@ from app.models import (
     UserRole,
 )
 from app.schemas import (
+    PAGE_SIZE_DEFAULT,
+    PAGE_SIZE_MAX,
+    SEARCH_MAX_LENGTH,
     ClubCreateRequest,
     ClubEventOut,
+    ClubListItemOut,
     ClubOut,
+    ClubPageOut,
     ClubUpdateRequest,
     NoteRequest,
 )
 from app.services.clubs import (
     ClubSort,
+    ClubSummary,
     create_club_for_user,
     get_club_for_user,
     list_club_events,
@@ -38,14 +44,37 @@ def create_club(
     return create_club_for_user(db, current_user, payload.name, payload.description)
 
 
-@router.get("", response_model=list[ClubOut])
+@router.get("", response_model=ClubPageOut)
 def list_clubs(
     db: DbSession,
     current_user: User = Depends(get_current_user),
     status_filter: list[ClubStatus] | None = Query(default=None, alias="status"),
     sort: ClubSort | None = None,
+    q: str | None = Query(default=None, max_length=SEARCH_MAX_LENGTH),
+    limit: int = Query(default=PAGE_SIZE_DEFAULT, ge=1, le=PAGE_SIZE_MAX),
+    offset: int = Query(default=0, ge=0),
 ):
-    return list_clubs_for_user(db, current_user, status_filter, sort)
+    page = list_clubs_for_user(db, current_user, status_filter, sort, q, limit, offset)
+    return ClubPageOut(
+        items=[_list_item(summary) for summary in page.items],
+        total=page.total,
+        status_counts=page.status_counts,
+    )
+
+
+def _list_item(summary: ClubSummary) -> ClubListItemOut:
+    club = summary.club
+    return ClubListItemOut(
+        id=club.id,
+        name=club.name,
+        description=club.description,
+        status=club.status.value,
+        submitter_id=club.submitter_id,
+        updated_at=club.updated_at,
+        owner_name=summary.owner_name,
+        documents_provided=summary.documents_provided,
+        documents_total=summary.documents_total,
+    )
 
 
 @router.get("/{club_id}", response_model=ClubOut)

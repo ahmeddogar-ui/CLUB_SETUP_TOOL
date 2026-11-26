@@ -1,18 +1,25 @@
 import { PageBreadcrumb } from "@/components/shared/page-breadcrumb";
 import { PageMeta } from "@/components/shared/page-meta";
+import { Button } from "@/components/ui/button";
 import { Card, CardTitle } from "@/components/ui/card";
-import { apiFetch } from "@/lib/api";
-import type { Club } from "@/lib/types";
 import { useQuery } from "@tanstack/react-query";
+import { Link, useSearchParams } from "react-router";
+import { CLUBS_PAGE_SIZE, clubPageQuery, readPage } from "./club-page-query";
 import { ClubsTable } from "./clubs-table";
-
-const QUEUE_QUERY = "status=submitted&status=under_review&sort=oldest";
+import { Pager } from "./pager";
 
 export default function ReviewQueuePage() {
-  const queue = useQuery({
-    queryKey: ["clubs", "review-queue"],
-    queryFn: () => apiFetch<Club[]>(`/clubs?${QUEUE_QUERY}`),
-  });
+  const [searchParams, setSearchParams] = useSearchParams();
+  const page = readPage(searchParams);
+
+  const queue = useQuery(
+    clubPageQuery({
+      statuses: ["submitted", "under_review"],
+      search: "",
+      sort: "oldest",
+      page,
+    }),
+  );
 
   return (
     <div>
@@ -28,16 +35,40 @@ export default function ReviewQueuePage() {
             Waiting for review
           </CardTitle>
           <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-            Longest waiting first.
+            Longest waiting first. Waiting time counts from the club's last
+            status change.
           </p>
         </div>
 
         <ClubsTable
-          clubs={queue.data}
+          clubs={queue.data?.items}
           isLoading={queue.isLoading}
           error={queue.error}
-          emptyTitle="Queue is empty"
-          emptyDescription="No club is waiting for review."
+          showOwner
+          timeColumn="waiting"
+          emptyState={{
+            title: "Nothing waiting for review",
+            description:
+              "Clubs appear here as soon as their leads submit them.",
+            action: (
+              <Button
+                size="sm"
+                variant="outline"
+                nativeButton={false}
+                render={<Link to="/" />}
+              >
+                View all clubs
+              </Button>
+            ),
+          }}
+        />
+        <Pager
+          page={page}
+          pageSize={CLUBS_PAGE_SIZE}
+          total={queue.data?.total ?? 0}
+          onPageChange={(nextPage) =>
+            setSearchParams({ page: String(nextPage) })
+          }
         />
       </Card>
     </div>

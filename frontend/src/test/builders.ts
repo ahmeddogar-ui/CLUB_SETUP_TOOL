@@ -1,6 +1,8 @@
 import type {
   Club,
   ClubEvent,
+  ClubListItem,
+  ClubPage,
   Requirement,
   RequirementType,
   User,
@@ -29,6 +31,45 @@ export function buildClub(overrides: Partial<Club> = {}): Club {
     description: "We play chess",
     status: "drafting",
     submitter_id: LEAD.id,
+    ...overrides,
+  };
+}
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/** An ISO timestamp `days` before now. */
+export function daysAgo(days: number): string {
+  return new Date(Date.now() - days * DAY_MS).toISOString();
+}
+
+export function buildClubListItem(
+  overrides: Partial<ClubListItem> = {},
+): ClubListItem {
+  return {
+    ...buildClub(),
+    owner_name: LEAD.name,
+    updated_at: daysAgo(2),
+    documents_provided: 0,
+    documents_total: 4,
+    ...overrides,
+  };
+}
+
+export function buildClubPage(
+  items: ClubListItem[],
+  overrides: Partial<ClubPage> = {},
+): ClubPage {
+  return {
+    items,
+    total: items.length,
+    status_counts: {
+      drafting: 0,
+      submitted: 0,
+      under_review: 0,
+      changes_requested: 0,
+      approved: 0,
+      rejected: 0,
+    },
     ...overrides,
   };
 }

@@ -14,6 +14,20 @@ export const CLUB_STATUS_BADGES: Record<
   rejected: { label: "Rejected", color: "error" },
 };
 
+/** Every club status, in lifecycle order (tabs and summary cards). */
+export const CLUB_STATUSES: readonly ClubStatus[] = [
+  "drafting",
+  "submitted",
+  "under_review",
+  "changes_requested",
+  "approved",
+  "rejected",
+];
+
+export function isClubStatus(value: string | null): value is ClubStatus {
+  return CLUB_STATUSES.some((status) => status === value);
+}
+
 export const REQUIREMENT_STATUS_BADGES: Record<
   RequirementStatus,
   { label: string; color: BadgeColor }
@@ -56,4 +70,41 @@ export function formatDateTime(isoTimestamp: string): string {
     dateStyle: "medium",
     timeStyle: "short",
   });
+}
+
+const MINUTE_SECONDS = 60;
+const HOUR_SECONDS = 60 * MINUTE_SECONDS;
+const DAY_SECONDS = 24 * HOUR_SECONDS;
+const MONTH_SECONDS = 30 * DAY_SECONDS;
+const YEAR_SECONDS = 365 * DAY_SECONDS;
+
+const relativeTime = new Intl.RelativeTimeFormat("en", { numeric: "auto" });
+
+function secondsSince(isoTimestamp: string): number {
+  return (Date.now() - new Date(isoTimestamp).getTime()) / 1000;
+}
+
+/** "just now", "5 minutes ago", "yesterday", "2 days ago", "3 months ago". */
+export function formatRelativeTime(isoTimestamp: string): string {
+  const seconds = secondsSince(isoTimestamp);
+  const units: [Intl.RelativeTimeFormatUnit, number][] = [
+    ["year", YEAR_SECONDS],
+    ["month", MONTH_SECONDS],
+    ["day", DAY_SECONDS],
+    ["hour", HOUR_SECONDS],
+    ["minute", MINUTE_SECONDS],
+  ];
+  for (const [unit, unitSeconds] of units) {
+    if (seconds >= unitSeconds) {
+      return relativeTime.format(-Math.floor(seconds / unitSeconds), unit);
+    }
+  }
+  return "just now";
+}
+
+/** Whole days since a club last changed status: "Less than a day", "3 days". */
+export function formatWaiting(isoTimestamp: string): string {
+  const days = Math.floor(secondsSince(isoTimestamp) / DAY_SECONDS);
+  if (days < 1) return "Less than a day";
+  return days === 1 ? "1 day" : `${days} days`;
 }

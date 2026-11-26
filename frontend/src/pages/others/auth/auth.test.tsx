@@ -1,5 +1,5 @@
 import { TOKEN_KEY } from "@/lib/api";
-import { LEAD } from "@/test/builders";
+import { LEAD, buildClubPage } from "@/test/builders";
 import { renderApp } from "@/test/render-app";
 import { server } from "@/test/server";
 import { screen } from "@testing-library/react";
@@ -9,7 +9,9 @@ import { describe, expect, it } from "vitest";
 const ISSUED_TOKEN = "issued-token";
 
 function serveClubList() {
-  server.use(http.get("/api/clubs", () => HttpResponse.json([])));
+  server.use(
+    http.get("/api/clubs", () => HttpResponse.json(buildClubPage([]))),
+  );
 }
 
 describe("signing in", () => {

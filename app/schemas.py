@@ -29,6 +29,9 @@ CLUB_NAME_MAX_LENGTH = 100
 DESCRIPTION_MAX_LENGTH = 2000
 NOTE_MAX_LENGTH = 2000
 URL_MAX_LENGTH = 2048
+SEARCH_MAX_LENGTH = 100
+PAGE_SIZE_DEFAULT = 20
+PAGE_SIZE_MAX = 100
 
 
 # Names and descriptions are trimmed, then required to be non-empty:
@@ -92,6 +95,19 @@ class ClubOut(BaseModel):
     submitter_id: int
 
     model_config = {"from_attributes": True}
+
+
+class ClubListItemOut(ClubOut):
+    owner_name: str
+    updated_at: datetime
+    documents_provided: int
+    documents_total: int
+
+
+class ClubPageOut(BaseModel):
+    items: list[ClubListItemOut]
+    total: int
+    status_counts: dict[ClubStatus, int]
 
 
 class NoteRequest(BaseModel):

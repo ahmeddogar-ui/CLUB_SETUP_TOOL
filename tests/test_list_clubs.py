@@ -18,9 +18,13 @@ def set_state(db, club_id, status, days_ago):
 
 
 def list_clubs(client, user, params=None):
-    response = client.get("/api/clubs", params=params, headers=auth(user))
+    """The clubs on the first page, large enough for every test here."""
+    params = [*(params.items() if isinstance(params, dict) else params or [])]
+    response = client.get(
+        "/api/clubs", params=[*params, ("limit", 100)], headers=auth(user)
+    )
     assert response.status_code == 200, response.text
-    return response.json()
+    return response.json()["items"]
 
 
 def ids(clubs):
@@ -68,7 +72,17 @@ def test_club_lead_with_no_clubs_gets_empty_list(client, db, clubs):
 
 def test_response_uses_club_out_shape(client, lead, clubs):
     [first, *_] = list_clubs(client, lead)
-    assert set(first) == {"id", "name", "description", "status", "submitter_id"}
+    assert set(first) == {
+        "id",
+        "name",
+        "description",
+        "status",
+        "submitter_id",
+        "owner_name",
+        "updated_at",
+        "documents_provided",
+        "documents_total",
+    }
 
 
 def test_requires_auth(client):
