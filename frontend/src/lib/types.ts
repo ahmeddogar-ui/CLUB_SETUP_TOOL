@@ -62,13 +62,27 @@ export interface Requirement {
   reviewer_note: string | null;
 }
 
+export type EventType =
+  | "created"
+  | "submitted"
+  | "review_started"
+  | "changes_requested"
+  | "resubmitted"
+  | "approved"
+  | "rejected"
+  | "requirement_submitted"
+  | "requirement_approved"
+  | "requirement_rejected"
+  | "comment_posted"
+  | "role_changed";
+
 export interface ClubEvent {
   id: number;
-  event_type: string;
+  event_type: EventType;
   requirement_id: number | null;
   link_url: string | null;
   from_status: ClubStatus | null;
-  to_status: ClubStatus;
+  to_status: ClubStatus | null;
   note: string | null;
   actor_name: string;
   created_at: string;
@@ -81,6 +95,31 @@ export interface Comment {
   author_name: string;
   author_role: UserRole;
   created_at: string;
+}
+
+/** One page of an admin list: `total` ignores limit and offset. */
+export interface Page<T> {
+  items: T[];
+  total: number;
+}
+
+export type UserListItem = User & { created_at: string };
+
+/** One row of the admin activity log, across every club. */
+export interface ActivityEntry {
+  id: number;
+  event_type: EventType;
+  created_at: string;
+  actor_id: number;
+  actor_name: string;
+  club_id: number | null;
+  club_name: string | null;
+  subject_user_id: number | null;
+  subject_user_name: string | null;
+  requirement_type: RequirementType | null;
+  from_status: ClubStatus | null;
+  to_status: ClubStatus | null;
+  note: string | null;
 }
 
 export interface LoginResponse {

@@ -1,6 +1,8 @@
 import AppLayout from "@/components/layout/app-layout";
 import { RequireAdmin } from "@/components/shared/require-admin";
 import { RequireAuth } from "@/components/shared/require-auth";
+import ActivityPage from "@/pages/main/activity/activity-page";
+import UsersPage from "@/pages/main/users/users-page";
 import ClubDetailPage from "@/pages/main/clubs/club-detail-page";
 import ClubsPage from "@/pages/main/clubs/clubs-page";
 import NewClubPage from "@/pages/main/clubs/new-club-page";
@@ -28,6 +30,8 @@ export default function App() {
             <Route path="/profile" element={<ProfilePage />} />
             <Route element={<RequireAdmin />}>
               <Route path="/review" element={<ReviewQueuePage />} />
+              <Route path="/users" element={<UsersPage />} />
+              <Route path="/activity" element={<ActivityPage />} />
             </Route>
           </Route>
         </Route>

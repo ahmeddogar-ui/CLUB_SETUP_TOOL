@@ -7,6 +7,7 @@ export { CheckCircleIcon } from "./check-circle";
 export { CheckIcon } from "./check";
 export { ChevronDownIcon } from "./chevron-down";
 export { ChevronRightIcon } from "./chevron-right";
+export { ClockIcon } from "./clock";
 export { EyeCloseIcon } from "./eye-close";
 export { EyeIcon } from "./eye";
 export { HorizontalDotsIcon } from "./horizontal-dots";

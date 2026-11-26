@@ -4,8 +4,9 @@ import { toast } from "sonner";
 
 declare module "@tanstack/react-query" {
   interface Register {
-    /** A mutation that sets `successMessage` confirms itself with a toast. */
-    mutationMeta: { successMessage?: string };
+    /** A mutation that sets `successMessage` confirms itself with a toast; a
+     * function builds the message from the variables the mutation ran with. */
+    mutationMeta: { successMessage?: string | ((variables: never) => string) };
   }
 }
 
@@ -19,9 +20,15 @@ const isClientError = (error: Error) =>
 export function createQueryClient({ retry = true } = {}) {
   return new QueryClient({
     mutationCache: new MutationCache({
-      onSuccess: (_data, _variables, _context, mutation) => {
+      onSuccess: (_data, variables, _context, mutation) => {
         const message = mutation.meta?.successMessage;
-        if (message) toast.success(message);
+        if (!message) return;
+        // The mutation that set the function typed its own variables.
+        const text =
+          typeof message === "function"
+            ? (message as (variables: unknown) => string)(variables)
+            : message;
+        toast.success(text);
       },
     }),
     defaultOptions: {

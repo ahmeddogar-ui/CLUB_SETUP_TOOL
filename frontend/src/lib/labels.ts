@@ -1,5 +1,6 @@
 import type {
   ClubStatus,
+  EventType,
   RequirementStatus,
   RequirementType,
   UserRole,
@@ -52,7 +53,7 @@ export const REQUIREMENT_LABELS: Record<RequirementType, string> = {
   exec_onboarding: "Executive onboarding",
 };
 
-export const EVENT_LABELS: Record<string, string> = {
+export const EVENT_LABELS: Record<EventType, string> = {
   created: "Club created",
   submitted: "Submitted for review",
   review_started: "Review started",
@@ -63,7 +64,16 @@ export const EVENT_LABELS: Record<string, string> = {
   requirement_submitted: "Document provided",
   requirement_approved: "Requirement approved",
   requirement_rejected: "Requirement rejected",
+  comment_posted: "Comment posted",
+  role_changed: "Role changed",
 };
+
+/** Every event type, in the order the activity filter lists them. */
+export const EVENT_TYPES = Object.keys(EVENT_LABELS) as EventType[];
+
+export function isEventType(value: string | null): value is EventType {
+  return EVENT_TYPES.some((type) => type === value);
+}
 
 export const EDITABLE_STATUSES: readonly ClubStatus[] = [
   "drafting",

@@ -1,4 +1,5 @@
 import type {
+  ActivityEntry,
   Club,
   ClubEvent,
   ClubListItem,
@@ -7,6 +8,7 @@ import type {
   Requirement,
   RequirementType,
   User,
+  UserListItem,
 } from "@/lib/types";
 
 // Shapes mirror the backend's response schemas (app/schemas.py).
@@ -122,6 +124,33 @@ export function buildComment(overrides: Partial<Comment> = {}): Comment {
     author_name: LEAD.name,
     author_role: "club_lead",
     created_at: "2026-11-01T12:00:00Z",
+    ...overrides,
+  };
+}
+
+export function buildUserListItem(
+  overrides: Partial<UserListItem> = {},
+): UserListItem {
+  return { ...LEAD, created_at: "2026-10-01T09:00:00Z", ...overrides };
+}
+
+export function buildActivityEntry(
+  overrides: Partial<ActivityEntry> = {},
+): ActivityEntry {
+  return {
+    id: 1,
+    event_type: "created",
+    created_at: "2026-11-01T12:00:00Z",
+    actor_id: LEAD.id,
+    actor_name: LEAD.name,
+    club_id: 10,
+    club_name: "Chess Club",
+    subject_user_id: null,
+    subject_user_name: null,
+    requirement_type: null,
+    from_status: null,
+    to_status: "drafting",
+    note: null,
     ...overrides,
   };
 }

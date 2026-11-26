@@ -10,7 +10,13 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { useAuth } from "@/contexts";
-import { HorizontalDotsIcon, LayoutGridIcon, TaskIcon } from "@/icons";
+import {
+  ClockIcon,
+  HorizontalDotsIcon,
+  LayoutGridIcon,
+  TaskIcon,
+  UserIcon,
+} from "@/icons";
 import { cn } from "@/utils";
 import { Link, useLocation } from "react-router";
 
@@ -25,6 +31,18 @@ const NAV_ITEMS = [
     label: "Review queue",
     path: "/review",
     icon: <TaskIcon className="size-6" />,
+    isAdminOnly: true,
+  },
+  {
+    label: "Users",
+    path: "/users",
+    icon: <UserIcon className="size-6" />,
+    isAdminOnly: true,
+  },
+  {
+    label: "Activity",
+    path: "/activity",
+    icon: <ClockIcon className="size-6" />,
     isAdminOnly: true,
   },
 ];
