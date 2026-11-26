@@ -74,6 +74,15 @@ export interface ClubEvent {
   created_at: string;
 }
 
+/** One message in a club's discussion (GET /clubs/{id}/comments). */
+export interface Comment {
+  id: number;
+  body: string;
+  author_name: string;
+  author_role: UserRole;
+  created_at: string;
+}
+
 export interface LoginResponse {
   access_token: string;
   token_type: string;

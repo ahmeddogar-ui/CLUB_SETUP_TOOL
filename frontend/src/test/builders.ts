@@ -3,6 +3,7 @@ import type {
   ClubEvent,
   ClubListItem,
   ClubPage,
+  Comment,
   Requirement,
   RequirementType,
   User,
@@ -109,6 +110,17 @@ export function buildEvent(overrides: Partial<ClubEvent> = {}): ClubEvent {
     to_status: "drafting",
     note: null,
     actor_name: LEAD.name,
+    created_at: "2026-11-01T12:00:00Z",
+    ...overrides,
+  };
+}
+
+export function buildComment(overrides: Partial<Comment> = {}): Comment {
+  return {
+    id: 1,
+    body: "A comment",
+    author_name: LEAD.name,
+    author_role: "club_lead",
     created_at: "2026-11-01T12:00:00Z",
     ...overrides,
   };

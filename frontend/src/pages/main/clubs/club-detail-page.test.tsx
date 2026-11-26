@@ -2,6 +2,7 @@ import type { Club, Requirement } from "@/lib/types";
 import {
   ADMIN,
   buildClub,
+  buildComment,
   buildEvent,
   buildRequirements,
   LEAD,
@@ -27,6 +28,9 @@ function serveClub(
       HttpResponse.json(state.requirements),
     ),
     http.get(`/api${CLUB_URL}/events`, () => HttpResponse.json([buildEvent()])),
+    http.get(`/api${CLUB_URL}/comments`, () =>
+      HttpResponse.json({ items: [], total: 0 }),
+    ),
   );
   return state;
 }
@@ -470,6 +474,91 @@ describe("club detail as an admin", () => {
       await within(dialog).findByText(
         "Requirements can only be reviewed while the club is under_review",
       ),
+    ).toBeInTheDocument();
+  });
+});
+
+describe("club discussion", () => {
+  it("shows the thread oldest first and posts a trimmed comment", async () => {
+    const club = buildClub({ status: "under_review" });
+    serveClub(club);
+    const comments = [
+      buildComment({
+        id: 2,
+        body: "Looks good so far",
+        author_name: ADMIN.name,
+        author_role: "admin",
+      }),
+      buildComment({ id: 1, body: "Is the budget OK?" }),
+    ];
+    let sent: unknown;
+    server.use(
+      http.get(`/api${CLUB_URL}/comments`, () =>
+        HttpResponse.json({ items: comments, total: comments.length }),
+      ),
+      http.post(`/api${CLUB_URL}/comments`, async ({ request }) => {
+        sent = await request.json();
+        const posted = buildComment({ id: 3, body: "Thanks!" });
+        comments.unshift(posted);
+        return HttpResponse.json(posted, { status: 201 });
+      }),
+    );
+    const { user } = await openClub(club);
+
+    const thread = await screen.findByRole("list", { name: "Comments" });
+    const bodies = within(thread)
+      .getAllByRole("listitem")
+      .map((item) => item.textContent);
+    expect(bodies[0]).toContain("Is the budget OK?");
+    expect(bodies[1]).toContain("Looks good so far");
+    expect(within(thread).getByText("Admin")).toBeInTheDocument();
+
+    await user.type(screen.getByLabelText("Comment"), "  Thanks!  ");
+    await user.click(screen.getByRole("button", { name: "Post comment" }));
+
+    expect(await screen.findByText("Comment posted")).toBeInTheDocument();
+    expect(sent).toEqual({ body: "Thanks!" });
+    expect(await within(thread).findByText("Thanks!")).toBeInTheDocument();
+    expect(screen.getByLabelText("Comment")).toHaveValue("");
+  });
+
+  it("loads older comments on request", async () => {
+    const club = buildClub();
+    serveClub(club);
+    const offsets: (string | null)[] = [];
+    server.use(
+      http.get(`/api${CLUB_URL}/comments`, ({ request }) => {
+        const offset = new URL(request.url).searchParams.get("offset");
+        offsets.push(offset);
+        const body = offset === "0" ? "Newest comment" : "Oldest comment";
+        return HttpResponse.json({
+          items: [buildComment({ id: offset === "0" ? 2 : 1, body })],
+          total: 21,
+        });
+      }),
+    );
+    const { user } = await openClub(club);
+    await screen.findByText("Newest comment");
+
+    await user.click(
+      screen.getByRole("button", { name: "Show older comments" }),
+    );
+
+    expect(await screen.findByText("Oldest comment")).toBeInTheDocument();
+    // The next page starts after the comments already loaded.
+    expect(offsets).toEqual(["0", "1"]);
+  });
+
+  it("explains an empty comment instead of posting it", async () => {
+    const club = buildClub();
+    serveClub(club);
+    const { user } = await openClub(club);
+
+    await user.type(await screen.findByLabelText("Comment"), "   ");
+    await user.click(screen.getByRole("button", { name: "Post comment" }));
+
+    expect(
+      await screen.findByText("Write a comment first"),
     ).toBeInTheDocument();
   });
 });

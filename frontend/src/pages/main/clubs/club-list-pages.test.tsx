@@ -476,6 +476,9 @@ describe("new club", () => {
         HttpResponse.json(buildRequirements(42)),
       ),
       http.get("/api/clubs/42/events", () => HttpResponse.json([buildEvent()])),
+      http.get("/api/clubs/42/comments", () =>
+        HttpResponse.json({ items: [], total: 0 }),
+      ),
     );
     const { user } = renderApp("/clubs/new", { signedInAs: LEAD });
 

@@ -12,6 +12,7 @@ import type { Club, ClubEvent, Requirement } from "@/lib/types";
 import { useQuery } from "@tanstack/react-query";
 import { useParams } from "react-router";
 import { ClubActions } from "./club-actions";
+import { DiscussionCard } from "./discussion-card";
 import { EditClubDialog } from "./edit-club-dialog";
 import { HistoryCard } from "./history-card";
 import { RequirementsCard } from "./requirements-card";
@@ -82,6 +83,8 @@ export default function ClubDetailPage() {
           canEditLinks={isEditable}
           canReview={isAdmin && club.data.status === "under_review"}
         />
+
+        <DiscussionCard clubId={club.data.id.toString()} />
 
         <HistoryCard events={events.data} requirements={requirements.data} />
       </div>
