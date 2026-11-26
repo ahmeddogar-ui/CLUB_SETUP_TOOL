@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/table";
 import { BoxIcon, ChevronDownIcon, OctagonAlertIcon } from "@/icons";
 import { formatRelativeTime, formatWaiting } from "@/lib/labels";
-import type { ClubListItem, ClubSortField } from "@/lib/types";
+import type { ClubListItem, ClubSortField, SortOrder } from "@/lib/types";
 import { cn } from "@/utils";
 import type { ReactNode } from "react";
 import { Link } from "react-router";
@@ -168,8 +168,16 @@ interface HeaderCellProps {
   className: string;
 }
 
-/** A column header; with sorting, a button that sorts by it (ascending
- * first, then flipping). */
+// Recency reads newest first; every other column A to Z first.
+const FIRST_ORDER: Record<ClubSortField, SortOrder> = {
+  name: "asc",
+  owner: "asc",
+  status: "asc",
+  updated: "desc",
+};
+
+/** A column header; with sorting, a button that sorts by it (in the column's
+ * natural direction first, then flipping). */
 function HeaderCell({ label, field, sorting, className }: HeaderCellProps) {
   if (!sorting) {
     return (
@@ -181,7 +189,8 @@ function HeaderCell({ label, field, sorting, className }: HeaderCellProps) {
 
   const { sort, onSortChange } = sorting;
   const isActive = sort.field === field;
-  const nextOrder = isActive && sort.order === "asc" ? "desc" : "asc";
+  const flipped = sort.order === "asc" ? "desc" : "asc";
+  const nextOrder = isActive ? flipped : FIRST_ORDER[field];
 
   return (
     <TableCell

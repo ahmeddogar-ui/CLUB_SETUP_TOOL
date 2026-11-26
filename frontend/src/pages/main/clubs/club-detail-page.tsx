@@ -55,10 +55,7 @@ export default function ClubDetailPage() {
 
   return (
     <div>
-      <PageMeta
-        title={`${club.data.name}`}
-        description={club.data.description}
-      />
+      <PageMeta title={club.data.name} description={club.data.description} />
       <PageBreadcrumb pageTitle={club.data.name} />
 
       <div className="space-y-6">
@@ -102,7 +99,7 @@ function ClubDetailSkeleton() {
         <Skeleton className="h-4 w-3/4 bg-gray-100 dark:bg-gray-800/60" />
       </Card>
       <Card className="overflow-hidden rounded-2xl border border-gray-200 bg-white p-0 sm:p-0 dark:border-gray-800 dark:bg-white/3">
-        <TableSkeleton label="Loading requirements" rows={6} />
+        <TableSkeleton rows={6} />
       </Card>
     </div>
   );

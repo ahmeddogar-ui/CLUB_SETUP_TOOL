@@ -5,15 +5,18 @@ import ClubDetailPage from "@/pages/main/clubs/club-detail-page";
 import ClubsPage from "@/pages/main/clubs/clubs-page";
 import NewClubPage from "@/pages/main/clubs/new-club-page";
 import ReviewQueuePage from "@/pages/main/clubs/review-queue-page";
+import { useTheme } from "@/contexts";
 import { Error404Page } from "@/pages/main/pages";
 import { AuthLayout, SignInPage, SignUpPage } from "@/pages/others/auth";
 import { Route, Routes } from "react-router";
 import { Toaster } from "sonner";
 
 export default function App() {
+  const { theme } = useTheme();
+
   return (
     <>
-      <Toaster position="top-right" richColors closeButton />
+      <Toaster theme={theme} position="top-right" richColors closeButton />
       <Routes>
         <Route element={<RequireAuth />}>
           <Route element={<AppLayout />}>

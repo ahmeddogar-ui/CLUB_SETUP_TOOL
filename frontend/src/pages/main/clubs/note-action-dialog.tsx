@@ -134,6 +134,8 @@ export function NoteActionDialog({
                   )}
                 </FieldLabel>
                 <Textarea
+                  // Back from the confirmation returns focus to the note.
+                  autoFocus={Boolean(trimmedNote)}
                   rows={4}
                   maxLength={NOTE_MAX_LENGTH}
                   value={note}

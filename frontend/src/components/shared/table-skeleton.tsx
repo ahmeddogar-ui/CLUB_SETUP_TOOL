@@ -1,8 +1,9 @@
 import { Skeleton } from "@/components/ui/skeleton";
 
 interface TableSkeletonProps {
-  /** Read out by screen readers, e.g. "Loading clubs". */
-  label: string;
+  /** Read out by screen readers, e.g. "Loading clubs". Omit inside a larger
+   * region that already announces itself. */
+  label?: string;
   rows?: number;
 }
 
@@ -15,7 +16,7 @@ export function TableSkeleton({
 }: TableSkeletonProps) {
   return (
     <div
-      role="status"
+      role={label ? "status" : undefined}
       aria-label={label}
       className="divide-y divide-gray-100 border-t border-gray-100 dark:divide-gray-800 dark:border-gray-800"
     >

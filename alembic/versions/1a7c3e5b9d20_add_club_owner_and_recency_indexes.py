@@ -17,9 +17,9 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
-    # GET /clubs for a club lead: WHERE submitter_id = ? ORDER BY updated_at.
+    # GET /clubs for a club lead: WHERE submitter_id = ? ORDER BY updated_at, id.
     op.create_index(
-        "idx_clubs_submitter_updated", "clubs", ["submitter_id", "updated_at"]
+        "idx_clubs_submitter_updated", "clubs", ["submitter_id", "updated_at", "id"]
     )
     # GET /clubs for an admin with no status filter: ORDER BY updated_at, id.
     op.create_index("idx_clubs_updated", "clubs", ["updated_at", "id"])

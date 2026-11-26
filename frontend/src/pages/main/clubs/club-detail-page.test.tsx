@@ -115,9 +115,10 @@ describe("club detail as the owning club lead", () => {
 
     await user.click(screen.getByRole("button", { name: "Submit for review" }));
 
-    expect(
-      await screen.findByText("missing: constitution, budget"),
-    ).toBeInTheDocument();
+    // Inline, not a toast: the lead needs it while fixing the documents.
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "missing: constitution, budget",
+    );
   });
 
   it("resubmits through the resubmit endpoint after changes were requested", async () => {
@@ -356,6 +357,9 @@ describe("club detail as an admin", () => {
     );
 
     expect(within(dialog).getByText("Reject Chess Club?")).toBeInTheDocument();
+    expect(
+      within(dialog).getByRole("button", { name: "Yes, reject" }),
+    ).toHaveFocus();
     expect(within(dialog).getByText("Duplicate club")).toBeInTheDocument();
     expect(sent).toBeUndefined();
 
@@ -381,6 +385,7 @@ describe("club detail as an admin", () => {
     await user.click(within(dialog).getByRole("button", { name: "Back" }));
 
     expect(within(dialog).getByRole("textbox")).toHaveValue("Duplicate club");
+    expect(within(dialog).getByRole("textbox")).toHaveFocus();
   });
 
   it("stops a note at the length the backend allows", async () => {
@@ -429,7 +434,10 @@ describe("club detail as an admin", () => {
       within(dialog).getByRole("button", { name: "Yes, request changes" }),
     );
 
-    expect(await screen.findAllByText("Changes requested")).not.toHaveLength(0);
+    // The new status badge and the confirmation toast.
+    await waitFor(() =>
+      expect(screen.getAllByText("Changes requested")).toHaveLength(2),
+    );
     expect(sent).toEqual({ note: "Budget is missing totals" });
   });
 

@@ -126,9 +126,9 @@ primitives (`src/components/ui`, MIT, see `frontend/LICENSE.md`).
 | Path | Role |
 | --- | --- |
 | `src/main.tsx` | Entry point: query client, router, theme, auth providers |
-| `src/App.tsx` | The only route table |
+| `src/App.tsx` | The only route table, and the one `Toaster` |
 | `src/components/layout/app-layout/` | Sidebar (two links) and header around every signed-in page |
-| `src/components/shared/` | `RequireAuth`, `RequireAdmin`, page title, logo |
+| `src/components/shared/` | `RequireAuth`, `RequireAdmin`, page title, logo, `Pager`, `TableSkeleton` (shared by every list) |
 | `src/pages/main/clubs/` | Every club screen and its dialogs |
 | `src/pages/others/auth/` | Sign in and sign up |
 | `src/lib/api.ts` | `apiFetch()`, the only way to call the backend |
@@ -168,7 +168,7 @@ state; the auth context owns sign-out.
 | URL | Who | Page |
 | --- | --- | --- |
 | `/signin`, `/signup` | signed out | Sign in; register as a club lead |
-| `/` | everyone | `clubs-page.tsx`: a lead's own clubs, or every club for an admin with status counts, status tabs and a name search. Status, search and page are in the URL (`?status=&q=&page=`) |
+| `/` | everyone | `clubs-page.tsx`: a lead's own clubs, or every club for an admin with status counts, status tabs and a name search. Status, search, sort and page are in the URL (`?status=&q=&sort=&order=&page=`); the column headers sort |
 | `/clubs/new` | club leads | `new-club-page.tsx` |
 | `/clubs/:clubId` | owner or admin | `club-detail-page.tsx`: details, requirements, history, actions |
 | `/review` | admins | `review-queue-page.tsx`: submitted and under-review clubs, oldest first, with how long each has waited |

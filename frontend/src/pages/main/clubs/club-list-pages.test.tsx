@@ -172,6 +172,41 @@ describe("all clubs (admin)", () => {
     );
   });
 
+  it("sorts by last update newest first on the first click", async () => {
+    const queries: URLSearchParams[] = [];
+    server.use(
+      http.get("/api/clubs", ({ request }) => {
+        queries.push(new URL(request.url).searchParams);
+        return HttpResponse.json(buildClubPage([buildClubListItem()]));
+      }),
+    );
+    const { user } = renderApp("/?sort=name&order=asc&page=3", {
+      signedInAs: ADMIN,
+    });
+    await screen.findByRole("link", { name: "Chess Club" });
+
+    await user.click(screen.getByRole("button", { name: /^Last updated/ }));
+
+    await waitFor(() => expect(queries.at(-1)?.get("sort")).toBe("updated"));
+    expect(queries.at(-1)?.get("order")).toBe("desc");
+    expect(queries.at(-1)?.get("offset")).toBe("0");
+  });
+
+  it("falls back to newest first for a sort it doesn't know", async () => {
+    let query: URLSearchParams | undefined;
+    server.use(
+      http.get("/api/clubs", ({ request }) => {
+        query = new URL(request.url).searchParams;
+        return HttpResponse.json(buildClubPage([buildClubListItem()]));
+      }),
+    );
+    renderApp("/?sort=documents&order=up", { signedInAs: ADMIN });
+    await screen.findByRole("link", { name: "Chess Club" });
+
+    expect(query?.get("sort")).toBe("updated");
+    expect(query?.get("order")).toBe("desc");
+  });
+
   function serveAllClubs(page = buildClubPage([])) {
     const queries: URLSearchParams[] = [];
     server.use(
