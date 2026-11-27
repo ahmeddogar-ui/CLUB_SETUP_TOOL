@@ -1,6 +1,6 @@
+import { TableSkeleton } from "@/components/shared/table-skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Spinner } from "@/components/ui/spinner";
 import {
   Table,
   TableBody,
@@ -8,17 +8,21 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { BoxIcon, OctagonAlertIcon } from "@/icons";
+import { BoxIcon, ChevronDownIcon, OctagonAlertIcon } from "@/icons";
 import { formatRelativeTime, formatWaiting } from "@/lib/labels";
-import type { ClubListItem } from "@/lib/types";
+import type { ClubListItem, ClubSortField, SortOrder } from "@/lib/types";
+import { cn } from "@/utils";
 import type { ReactNode } from "react";
 import { Link } from "react-router";
+import type { ClubSort } from "./club-page-query";
 import { ClubStatusBadge } from "./status-badge";
 
 const HEADER_CELL_CLASS =
   "px-6 py-3 text-start text-xs font-medium text-gray-500 dark:text-gray-400";
 const CELL_CLASS =
   "px-6 py-4 text-start text-sm whitespace-nowrap text-gray-500 dark:text-gray-400";
+// Secondary columns give way on small screens; the club cell repeats the owner.
+const WIDE_ONLY = "hidden md:table-cell";
 
 export interface EmptyState {
   title: string;
@@ -40,8 +44,14 @@ export function pastLastPage(goToFirstPage: () => void): EmptyState {
   };
 }
 
+interface Sorting {
+  sort: ClubSort;
+  onSortChange: (sort: ClubSort) => void;
+}
+
 interface ClubsTableProps {
   clubs: ClubListItem[] | undefined;
+  /** True on the first load and while another page or filter loads. */
   isLoading: boolean;
   error: Error | null;
   /** Admins see clubs from every lead, so they need to know whose each is. */
@@ -49,6 +59,8 @@ interface ClubsTableProps {
   /** The review queue shows how long each club has waited instead. */
   timeColumn: "last-updated" | "waiting";
   emptyState: EmptyState;
+  /** Omit for a fixed order (the review queue). */
+  sorting?: Sorting;
 }
 
 export function ClubsTable({
@@ -58,14 +70,9 @@ export function ClubsTable({
   showOwner,
   timeColumn,
   emptyState,
+  sorting,
 }: ClubsTableProps) {
-  if (isLoading) {
-    return (
-      <div className="flex justify-center py-12">
-        <Spinner className="size-6 text-brand-500" />
-      </div>
-    );
-  }
+  if (isLoading) return <TableSkeleton label="Loading clubs" />;
 
   if (error) {
     return (
@@ -81,28 +88,34 @@ export function ClubsTable({
     return <EmptyClubs {...emptyState} />;
   }
 
+  const header = (label: string, field: ClubSortField, className = "") => (
+    <HeaderCell
+      label={label}
+      field={field}
+      sorting={sorting}
+      className={className}
+    />
+  );
+
   return (
     <div className="max-w-full overflow-x-auto">
-      <Table>
+      {/* table-fixed only applies with an explicit width (w-full). */}
+      <Table className="w-full table-fixed md:table-auto">
         <TableHeader className="border-y border-gray-100 bg-gray-50 dark:border-gray-800 dark:bg-gray-900">
           <TableRow>
-            <TableCell isHeader className={HEADER_CELL_CLASS}>
-              Club
-            </TableCell>
-            {showOwner && (
-              <TableCell isHeader className={HEADER_CELL_CLASS}>
-                Owner
-              </TableCell>
-            )}
-            <TableCell isHeader className={HEADER_CELL_CLASS}>
-              Status
-            </TableCell>
-            <TableCell isHeader className={HEADER_CELL_CLASS}>
+            {header("Club", "name", "w-1/2 md:w-auto")}
+            {showOwner && header("Owner", "owner", WIDE_ONLY)}
+            {header("Status", "status")}
+            <TableCell isHeader className={cn(HEADER_CELL_CLASS, WIDE_ONLY)}>
               Documents
             </TableCell>
-            <TableCell isHeader className={HEADER_CELL_CLASS}>
-              {timeColumn === "waiting" ? "Waiting" : "Last updated"}
-            </TableCell>
+            {timeColumn === "waiting" ? (
+              <TableCell isHeader className={cn(HEADER_CELL_CLASS, WIDE_ONLY)}>
+                Waiting
+              </TableCell>
+            ) : (
+              header("Last updated", "updated", WIDE_ONLY)
+            )}
           </TableRow>
         </TableHeader>
 
@@ -112,24 +125,31 @@ export function ClubsTable({
               <TableCell className="max-w-sm px-6 py-4 text-start">
                 <Link
                   to={`/clubs/${club.id}`}
-                  className="text-sm font-medium text-gray-800 hover:text-brand-500 dark:text-white/90 dark:hover:text-brand-400"
+                  className="text-sm font-medium break-words text-gray-800 hover:text-brand-500 dark:text-white/90 dark:hover:text-brand-400"
                 >
                   {club.name}
                 </Link>
                 <p className="mt-0.5 truncate text-sm text-gray-500 dark:text-gray-400">
                   {club.description}
                 </p>
+                {showOwner && (
+                  <p className="mt-0.5 truncate text-xs text-gray-400 md:hidden">
+                    {club.owner_name}
+                  </p>
+                )}
               </TableCell>
               {showOwner && (
-                <TableCell className={CELL_CLASS}>{club.owner_name}</TableCell>
+                <TableCell className={cn(CELL_CLASS, WIDE_ONLY)}>
+                  {club.owner_name}
+                </TableCell>
               )}
               <TableCell className="px-6 py-4 text-start">
                 <ClubStatusBadge status={club.status} />
               </TableCell>
-              <TableCell className={CELL_CLASS}>
+              <TableCell className={cn(CELL_CLASS, WIDE_ONLY)}>
                 {club.documents_provided}/{club.documents_total} documents
               </TableCell>
-              <TableCell className={CELL_CLASS}>
+              <TableCell className={cn(CELL_CLASS, WIDE_ONLY)}>
                 {timeColumn === "waiting"
                   ? formatWaiting(club.updated_at)
                   : formatRelativeTime(club.updated_at)}
@@ -139,6 +159,67 @@ export function ClubsTable({
         </TableBody>
       </Table>
     </div>
+  );
+}
+
+interface HeaderCellProps {
+  label: string;
+  field: ClubSortField;
+  sorting: Sorting | undefined;
+  className: string;
+}
+
+// Recency reads newest first; every other column A to Z first.
+const FIRST_ORDER: Record<ClubSortField, SortOrder> = {
+  name: "asc",
+  owner: "asc",
+  status: "asc",
+  updated: "desc",
+};
+
+/** A column header; with sorting, a button that sorts by it (in the column's
+ * natural direction first, then flipping). */
+function HeaderCell({ label, field, sorting, className }: HeaderCellProps) {
+  if (!sorting) {
+    return (
+      <TableCell isHeader className={cn(HEADER_CELL_CLASS, className)}>
+        {label}
+      </TableCell>
+    );
+  }
+
+  const { sort, onSortChange } = sorting;
+  const isActive = sort.field === field;
+  const flipped = sort.order === "asc" ? "desc" : "asc";
+  const nextOrder = isActive ? flipped : FIRST_ORDER[field];
+
+  return (
+    <TableCell
+      isHeader
+      className={cn(HEADER_CELL_CLASS, className)}
+      aria-sort={
+        isActive ? (sort.order === "asc" ? "ascending" : "descending") : "none"
+      }
+    >
+      <button
+        type="button"
+        onClick={() => onSortChange({ field, order: nextOrder })}
+        className={cn(
+          "inline-flex items-center gap-1 hover:text-gray-800 dark:hover:text-white/90",
+          isActive && "text-gray-800 dark:text-white/90",
+        )}
+      >
+        {label}
+        <ChevronDownIcon
+          aria-hidden
+          className={cn(
+            "size-4 transition-transform",
+            !isActive && "opacity-0",
+            isActive && sort.order === "asc" && "rotate-180",
+          )}
+        />
+      </button>
+    </TableCell>
   );
 }
 

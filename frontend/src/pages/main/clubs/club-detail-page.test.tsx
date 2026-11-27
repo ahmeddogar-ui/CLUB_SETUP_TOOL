@@ -2,13 +2,14 @@ import type { Club, Requirement } from "@/lib/types";
 import {
   ADMIN,
   buildClub,
+  buildComment,
   buildEvent,
   buildRequirements,
   LEAD,
 } from "@/test/builders";
 import { renderApp } from "@/test/render-app";
 import { server } from "@/test/server";
-import { screen, within } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { describe, expect, it } from "vitest";
 
@@ -27,6 +28,9 @@ function serveClub(
       HttpResponse.json(state.requirements),
     ),
     http.get(`/api${CLUB_URL}/events`, () => HttpResponse.json([buildEvent()])),
+    http.get(`/api${CLUB_URL}/comments`, () =>
+      HttpResponse.json({ items: [], total: 0 }),
+    ),
   );
   return state;
 }
@@ -88,6 +92,9 @@ describe("club detail as the owning club lead", () => {
 
     await user.click(screen.getByRole("button", { name: "Submit for review" }));
 
+    expect(
+      await screen.findByText("Club submitted for review"),
+    ).toBeInTheDocument();
     expect(await screen.findByText("Submitted")).toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "Submit for review" }),
@@ -112,9 +119,10 @@ describe("club detail as the owning club lead", () => {
 
     await user.click(screen.getByRole("button", { name: "Submit for review" }));
 
-    expect(
-      await screen.findByText("missing: constitution, budget"),
-    ).toBeInTheDocument();
+    // Inline, not a toast: the lead needs it while fixing the documents.
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "missing: constitution, budget",
+    );
   });
 
   it("resubmits through the resubmit endpoint after changes were requested", async () => {
@@ -181,6 +189,54 @@ describe("club detail as the owning club lead", () => {
     expect(
       within(requirementRow("Budget")).getByText("Provided"),
     ).toBeInTheDocument();
+  });
+
+  it("explains an invalid link inline and never calls the backend", async () => {
+    const club = buildClub();
+    serveClub(club);
+    const { user } = await openClub(club);
+
+    await user.click(
+      within(requirementRow("Budget")).getByRole("button", {
+        name: "Provide link",
+      }),
+    );
+    await user.type(screen.getByLabelText(/document link/i), "not a link");
+    await user.click(screen.getByRole("button", { name: "Save link" }));
+
+    expect(
+      await screen.findByText("Enter a full link, starting with https://"),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText(/document link/i)).toHaveAttribute(
+      "aria-invalid",
+      "true",
+    );
+  });
+
+  it("saves a link when Enter is pressed", async () => {
+    const club = buildClub();
+    serveClub(club);
+    let saved = false;
+    server.use(
+      http.put(`/api${CLUB_URL}/requirements/budget/link`, () => {
+        saved = true;
+        return HttpResponse.json(buildRequirements(club.id)[2]);
+      }),
+    );
+    const { user } = await openClub(club);
+
+    await user.click(
+      within(requirementRow("Budget")).getByRole("button", {
+        name: "Provide link",
+      }),
+    );
+    await user.type(
+      screen.getByLabelText(/document link/i),
+      "https://docs.example.com/budget{Enter}",
+    );
+
+    expect(await screen.findByText("Link saved")).toBeInTheDocument();
+    expect(saved).toBe(true);
   });
 
   it("shows read-only details once the club is under review", async () => {
@@ -284,6 +340,58 @@ describe("club detail as an admin", () => {
     ).toBeInTheDocument();
   });
 
+  it("asks for confirmation, showing the note, before rejecting the club", async () => {
+    const club = buildClub({ status: "under_review" });
+    const state = serveClub(club);
+    let sent: unknown;
+    server.use(
+      http.post(`/api${CLUB_URL}/reject`, async ({ request }) => {
+        sent = await request.json();
+        state.club = { ...state.club, status: "rejected" };
+        return HttpResponse.json(state.club);
+      }),
+    );
+    const { user } = await openClub(club, ADMIN);
+
+    await user.click(screen.getByRole("button", { name: "Reject club" }));
+    const dialog = await screen.findByRole("dialog");
+    await user.type(within(dialog).getByRole("textbox"), "Duplicate club");
+    await user.click(
+      within(dialog).getByRole("button", { name: "Reject club" }),
+    );
+
+    expect(within(dialog).getByText("Reject Chess Club?")).toBeInTheDocument();
+    expect(
+      within(dialog).getByRole("button", { name: "Yes, reject" }),
+    ).toHaveFocus();
+    expect(within(dialog).getByText("Duplicate club")).toBeInTheDocument();
+    expect(sent).toBeUndefined();
+
+    await user.click(
+      within(dialog).getByRole("button", { name: "Yes, reject" }),
+    );
+
+    expect(await screen.findByText("Club rejected")).toBeInTheDocument();
+    expect(sent).toEqual({ note: "Duplicate club" });
+  });
+
+  it("goes back to the note from the confirmation without sending", async () => {
+    const club = buildClub({ status: "under_review" });
+    serveClub(club);
+    const { user } = await openClub(club, ADMIN);
+
+    await user.click(screen.getByRole("button", { name: "Reject club" }));
+    const dialog = await screen.findByRole("dialog");
+    await user.type(within(dialog).getByRole("textbox"), "Duplicate club");
+    await user.click(
+      within(dialog).getByRole("button", { name: "Reject club" }),
+    );
+    await user.click(within(dialog).getByRole("button", { name: "Back" }));
+
+    expect(within(dialog).getByRole("textbox")).toHaveValue("Duplicate club");
+    expect(within(dialog).getByRole("textbox")).toHaveFocus();
+  });
+
   it("stops a note at the length the backend allows", async () => {
     const club = buildClub({ status: "under_review" });
     serveClub(club);
@@ -325,8 +433,15 @@ describe("club detail as an admin", () => {
       "Budget is missing totals  ",
     );
     await user.click(confirm);
+    expect(sent).toBeUndefined();
+    await user.click(
+      within(dialog).getByRole("button", { name: "Yes, request changes" }),
+    );
 
-    expect(await screen.findByText("Changes requested")).toBeInTheDocument();
+    // The new status badge and the confirmation toast.
+    await waitFor(() =>
+      expect(screen.getAllByText("Changes requested")).toHaveLength(2),
+    );
     expect(sent).toEqual({ note: "Budget is missing totals" });
   });
 
@@ -360,6 +475,132 @@ describe("club detail as an admin", () => {
         "Requirements can only be reviewed while the club is under_review",
       ),
     ).toBeInTheDocument();
+  });
+});
+
+describe("club discussion", () => {
+  it("shows the thread oldest first and posts a trimmed comment", async () => {
+    const club = buildClub({ status: "under_review" });
+    serveClub(club);
+    const comments = [
+      buildComment({
+        id: 2,
+        body: "Looks good so far",
+        author_name: ADMIN.name,
+        author_role: "admin",
+      }),
+      buildComment({ id: 1, body: "Is the budget OK?" }),
+    ];
+    let sent: unknown;
+    server.use(
+      http.get(`/api${CLUB_URL}/comments`, () =>
+        HttpResponse.json({ items: comments, total: comments.length }),
+      ),
+      http.post(`/api${CLUB_URL}/comments`, async ({ request }) => {
+        sent = await request.json();
+        const posted = buildComment({ id: 3, body: "Thanks!" });
+        comments.unshift(posted);
+        return HttpResponse.json(posted, { status: 201 });
+      }),
+    );
+    const { user } = await openClub(club);
+
+    const thread = await screen.findByRole("list", { name: "Comments" });
+    const bodies = within(thread)
+      .getAllByRole("listitem")
+      .map((item) => item.textContent);
+    expect(bodies[0]).toContain("Is the budget OK?");
+    expect(bodies[1]).toContain("Looks good so far");
+    expect(within(thread).getByText("Admin")).toBeInTheDocument();
+
+    await user.type(screen.getByLabelText("Comment"), "  Thanks!  ");
+    await user.click(screen.getByRole("button", { name: "Post comment" }));
+
+    expect(await screen.findByText("Comment posted")).toBeInTheDocument();
+    expect(sent).toEqual({ body: "Thanks!" });
+    expect(await within(thread).findByText("Thanks!")).toBeInTheDocument();
+    expect(screen.getByLabelText("Comment")).toHaveValue("");
+  });
+
+  it("loads older comments on request", async () => {
+    const club = buildClub();
+    serveClub(club);
+    const offsets: (string | null)[] = [];
+    server.use(
+      http.get(`/api${CLUB_URL}/comments`, ({ request }) => {
+        const offset = new URL(request.url).searchParams.get("offset");
+        offsets.push(offset);
+        const body = offset === "0" ? "Newest comment" : "Oldest comment";
+        return HttpResponse.json({
+          items: [buildComment({ id: offset === "0" ? 2 : 1, body })],
+          total: 21,
+        });
+      }),
+    );
+    const { user } = await openClub(club);
+    await screen.findByText("Newest comment");
+
+    await user.click(
+      screen.getByRole("button", { name: "Show older comments" }),
+    );
+
+    expect(await screen.findByText("Oldest comment")).toBeInTheDocument();
+    // The next page starts after the comments already loaded.
+    expect(offsets).toEqual(["0", "1"]);
+  });
+
+  it("shows a comment once when a new one shifts the pages", async () => {
+    const club = buildClub();
+    serveClub(club);
+    server.use(
+      http.get(`/api${CLUB_URL}/comments`, ({ request }) => {
+        const offset = new URL(request.url).searchParams.get("offset");
+        // Someone posted in between: the second page repeats comment 2.
+        const items =
+          offset === "0"
+            ? [
+                buildComment({ id: 3, body: "Third" }),
+                buildComment({ id: 2, body: "Second" }),
+              ]
+            : [
+                buildComment({ id: 2, body: "Second" }),
+                buildComment({ id: 1, body: "First" }),
+              ];
+        return HttpResponse.json({ items, total: 4 });
+      }),
+    );
+    const { user } = await openClub(club);
+    await screen.findByText("Third");
+
+    await user.click(
+      screen.getByRole("button", { name: "Show older comments" }),
+    );
+
+    expect(await screen.findByText("First")).toBeInTheDocument();
+    expect(screen.getAllByText("Second")).toHaveLength(1);
+  });
+
+  it("explains an empty comment instead of posting it", async () => {
+    const club = buildClub();
+    serveClub(club);
+    const { user } = await openClub(club);
+
+    await user.type(await screen.findByLabelText("Comment"), "   ");
+    await user.click(screen.getByRole("button", { name: "Post comment" }));
+
+    expect(
+      await screen.findByText("Write a comment first"),
+    ).toBeInTheDocument();
+  });
+});
+
+describe("club detail page title", () => {
+  it("names the club in the browser tab", async () => {
+    const club = buildClub();
+    serveClub(club);
+    await openClub(club);
+
+    await waitFor(() => expect(document.title).toBe("Chess Club · Club Setup"));
   });
 });
 

@@ -7,7 +7,7 @@ export default function Error404Page() {
   return (
     <div className="relative z-1 flex min-h-screen flex-col items-center justify-center overflow-hidden p-6">
       <PageMeta
-        title="Page not found | Club Setup"
+        title="Page not found"
         description="The page you are looking for does not exist"
       />
       <GridShape />

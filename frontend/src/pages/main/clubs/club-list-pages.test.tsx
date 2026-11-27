@@ -4,15 +4,23 @@ import {
   buildClubListItem,
   buildClubPage,
   buildEvent,
+  buildRequestPage,
   buildRequirements,
   daysAgo,
   LEAD,
 } from "@/test/builders";
 import { renderApp } from "@/test/render-app";
 import { server } from "@/test/server";
-import { screen, within } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { describe, expect, it, vi } from "vitest";
+
+/** The review queue also asks for the requests awaiting the admin. */
+function serveNoAwaitingRequests() {
+  server.use(
+    http.get("/api/requests", () => HttpResponse.json(buildRequestPage([]))),
+  );
+}
 
 describe("club list", () => {
   it("lists the lead's clubs with status, document progress and last update", async () => {
@@ -97,7 +105,117 @@ describe("club list", () => {
   });
 });
 
+describe("list loading states", () => {
+  it("shows skeleton rows while the next page loads", async () => {
+    let releaseSecondPage = () => {};
+    const secondPage = new Promise<void>((resolve) => {
+      releaseSecondPage = resolve;
+    });
+    server.use(
+      http.get("/api/clubs", async ({ request }) => {
+        const offset = new URL(request.url).searchParams.get("offset");
+        if (offset === "20") await secondPage;
+        const name = offset === "20" ? "Second page club" : "First page club";
+        return HttpResponse.json(
+          buildClubPage([buildClubListItem({ name })], { total: 25 }),
+        );
+      }),
+    );
+    const { user } = renderApp("/", { signedInAs: LEAD });
+    await screen.findByRole("link", { name: "First page club" });
+
+    await user.click(screen.getByRole("button", { name: "Next" }));
+
+    expect(
+      await screen.findByRole("status", { name: "Loading clubs" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: "First page club" }),
+    ).not.toBeInTheDocument();
+    releaseSecondPage();
+    expect(
+      await screen.findByRole("link", { name: "Second page club" }),
+    ).toBeInTheDocument();
+  });
+
+  it("puts the page name in the browser tab", async () => {
+    server.use(
+      http.get("/api/clubs", () => HttpResponse.json(buildClubPage([]))),
+    );
+    serveNoAwaitingRequests();
+    renderApp("/review", { signedInAs: ADMIN });
+
+    await waitFor(() =>
+      expect(document.title).toBe("Review queue · Club Setup"),
+    );
+  });
+});
+
 describe("all clubs (admin)", () => {
+  it("sorts by a column on the server, flipping the order on a second click", async () => {
+    const queries: URLSearchParams[] = [];
+    server.use(
+      http.get("/api/clubs", ({ request }) => {
+        queries.push(new URL(request.url).searchParams);
+        return HttpResponse.json(buildClubPage([buildClubListItem()]));
+      }),
+    );
+    const { user } = renderApp("/", { signedInAs: ADMIN });
+    await screen.findByRole("link", { name: "Chess Club" });
+    expect(queries.at(-1)?.get("sort")).toBe("updated");
+    expect(queries.at(-1)?.get("order")).toBe("desc");
+
+    await user.click(screen.getByRole("button", { name: /^Club/ }));
+    await waitFor(() => expect(queries.at(-1)?.get("sort")).toBe("name"));
+    expect(queries.at(-1)?.get("order")).toBe("asc");
+    expect(screen.getByRole("columnheader", { name: /^Club/ })).toHaveAttribute(
+      "aria-sort",
+      "ascending",
+    );
+
+    await user.click(screen.getByRole("button", { name: /^Club/ }));
+    await waitFor(() => expect(queries.at(-1)?.get("order")).toBe("desc"));
+    expect(screen.getByRole("columnheader", { name: /^Club/ })).toHaveAttribute(
+      "aria-sort",
+      "descending",
+    );
+  });
+
+  it("sorts by last update newest first on the first click", async () => {
+    const queries: URLSearchParams[] = [];
+    server.use(
+      http.get("/api/clubs", ({ request }) => {
+        queries.push(new URL(request.url).searchParams);
+        return HttpResponse.json(buildClubPage([buildClubListItem()]));
+      }),
+    );
+    const { user } = renderApp("/?sort=name&order=asc&page=3", {
+      signedInAs: ADMIN,
+    });
+    await screen.findByRole("link", { name: "Chess Club" });
+
+    await user.click(screen.getByRole("button", { name: /^Last updated/ }));
+
+    await waitFor(() => expect(queries.at(-1)?.get("sort")).toBe("updated"));
+    expect(queries.at(-1)?.get("order")).toBe("desc");
+    expect(queries.at(-1)?.get("offset")).toBe("0");
+  });
+
+  it("falls back to newest first for a sort it doesn't know", async () => {
+    let query: URLSearchParams | undefined;
+    server.use(
+      http.get("/api/clubs", ({ request }) => {
+        query = new URL(request.url).searchParams;
+        return HttpResponse.json(buildClubPage([buildClubListItem()]));
+      }),
+    );
+    renderApp("/?sort=documents&order=up", { signedInAs: ADMIN });
+    await screen.findByRole("link", { name: "Chess Club" });
+
+    expect(query?.get("sort")).toBe("updated");
+    expect(query?.get("order")).toBe("desc");
+  });
+
   function serveAllClubs(page = buildClubPage([])) {
     const queries: URLSearchParams[] = [];
     server.use(
@@ -134,7 +252,7 @@ describe("all clubs (admin)", () => {
     serveAllClubs(
       buildClubPage([], {
         status_counts: {
-          drafting: 4,
+          drafting: 0,
           submitted: 2,
           under_review: 1,
           changes_requested: 0,
@@ -151,9 +269,11 @@ describe("all clubs (admin)", () => {
     expect(within(summary).getByText("Approved").nextSibling).toHaveTextContent(
       "7",
     );
-    expect(within(summary).getByText("Drafting").nextSibling).toHaveTextContent(
-      "4",
-    );
+    // Drafts are their leads' own until submitted: no card, no tab.
+    expect(within(summary).queryByText("Drafting")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Drafting" }),
+    ).not.toBeInTheDocument();
   });
 
   it("filters by status on the server and starts again from the first page", async () => {
@@ -202,6 +322,78 @@ describe("all clubs (admin)", () => {
   });
 });
 
+describe("export (admin)", () => {
+  function serveExport() {
+    Object.assign(URL, {
+      createObjectURL: vi.fn(() => "blob:clubs"),
+      revokeObjectURL: vi.fn(),
+    });
+    const click = vi
+      .spyOn(HTMLAnchorElement.prototype, "click")
+      .mockImplementation(() => undefined);
+    const queries: URLSearchParams[] = [];
+    server.use(
+      http.get("/api/clubs", () => HttpResponse.json(buildClubPage([]))),
+      http.get("/api/clubs/export.csv", ({ request }) => {
+        queries.push(new URL(request.url).searchParams);
+        return new HttpResponse("id,name\n", {
+          headers: { "Content-Type": "text/csv" },
+        });
+      }),
+    );
+    return { queries, click };
+  }
+
+  it("downloads the clubs matching the status and search on screen", async () => {
+    const { queries, click } = serveExport();
+    const { user } = renderApp(
+      "/?status=submitted&q=chess&sort=name&order=desc",
+      {
+        signedInAs: ADMIN,
+      },
+    );
+
+    await user.click(await screen.findByRole("button", { name: "Export CSV" }));
+
+    await vi.waitFor(() => expect(queries).toHaveLength(1));
+    expect(queries[0].getAll("status")).toEqual(["submitted"]);
+    expect(queries[0].get("q")).toBe("chess");
+    expect(queries[0].get("sort")).toBe("name");
+    expect(queries[0].get("order")).toBe("desc");
+    expect(queries[0].has("limit")).toBe(false);
+    expect(queries[0].has("offset")).toBe(false);
+    expect(click).toHaveBeenCalledOnce();
+    expect(await screen.findByText("Export downloaded")).toBeInTheDocument();
+  });
+
+  it("shows the backend's message when the export fails", async () => {
+    serveExport();
+    server.use(
+      http.get("/api/clubs/export.csv", () =>
+        HttpResponse.json({ detail: "Database unavailable" }, { status: 503 }),
+      ),
+    );
+    const { user } = renderApp("/", { signedInAs: ADMIN });
+
+    await user.click(await screen.findByRole("button", { name: "Export CSV" }));
+
+    expect(await screen.findByText("Database unavailable")).toBeInTheDocument();
+    expect(screen.queryByText("Export downloaded")).not.toBeInTheDocument();
+  });
+
+  it("is not offered to a club lead", async () => {
+    server.use(
+      http.get("/api/clubs", () => HttpResponse.json(buildClubPage([]))),
+    );
+    renderApp("/", { signedInAs: LEAD });
+
+    await screen.findByText("No clubs yet");
+    expect(
+      screen.queryByRole("button", { name: "Export CSV" }),
+    ).not.toBeInTheDocument();
+  });
+});
+
 describe("review queue", () => {
   it("asks for submitted and under-review clubs, oldest first, and shows how long each has waited", async () => {
     let query: URLSearchParams | undefined;
@@ -225,13 +417,15 @@ describe("review queue", () => {
         );
       }),
     );
+    serveNoAwaitingRequests();
     renderApp("/review", { signedInAs: ADMIN });
 
     expect(
       await screen.findByRole("link", { name: "Chess Club" }),
     ).toBeInTheDocument();
     expect(query?.getAll("status")).toEqual(["submitted", "under_review"]);
-    expect(query?.get("sort")).toBe("oldest");
+    expect(query?.get("sort")).toBe("updated");
+    expect(query?.get("order")).toBe("asc");
     expect(screen.getByText("3 days")).toBeInTheDocument();
     expect(screen.getByText("Less than a day")).toBeInTheDocument();
   });
@@ -246,6 +440,7 @@ describe("review queue", () => {
         return HttpResponse.json(buildClubPage(items, { total: 5 }));
       }),
     );
+    serveNoAwaitingRequests();
     const { user } = renderApp("/review?page=2", { signedInAs: ADMIN });
 
     expect(
@@ -265,6 +460,7 @@ describe("review queue", () => {
     server.use(
       http.get("/api/clubs", () => HttpResponse.json(buildClubPage([]))),
     );
+    serveNoAwaitingRequests();
     renderApp("/review", { signedInAs: ADMIN });
 
     expect(
@@ -294,6 +490,9 @@ describe("new club", () => {
         HttpResponse.json(buildRequirements(42)),
       ),
       http.get("/api/clubs/42/events", () => HttpResponse.json([buildEvent()])),
+      http.get("/api/clubs/42/comments", () =>
+        HttpResponse.json({ items: [], total: 0 }),
+      ),
     );
     const { user } = renderApp("/clubs/new", { signedInAs: LEAD });
 

@@ -2,6 +2,7 @@
 
 import pytest
 
+from app.models import Clubs, ClubStatus
 from tests.conftest import auth, create_club, provide_all_documents
 
 READ_PATHS = ("requirements", "events")
@@ -67,7 +68,9 @@ def test_events_include_requirement_link_and_id(client, club, lead):
 
 
 @pytest.mark.parametrize("path", READ_PATHS)
-def test_admin_can_read_any_club(client, club, admin, path):
+def test_admin_can_read_any_submitted_club(client, db, club, admin, path):
+    db.get(Clubs, club["id"]).status = ClubStatus.submitted
+    db.commit()
     assert (
         client.get(f"/api/clubs/{club['id']}/{path}", headers=auth(admin)).status_code
         == 200

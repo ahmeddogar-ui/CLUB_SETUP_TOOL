@@ -1,5 +1,8 @@
 import { Helmet } from "react-helmet-async";
 
+const APP_NAME = "Club Setup";
+
+/** Sets the browser tab to "<title> · Club Setup". */
 export function PageMeta({
   title,
   description,
@@ -9,7 +12,7 @@ export function PageMeta({
 }) {
   return (
     <Helmet>
-      <title>{title}</title>
+      <title>{`${title} · ${APP_NAME}`}</title>
       <meta name="description" content={description} />
     </Helmet>
   );

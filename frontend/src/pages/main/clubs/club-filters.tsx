@@ -1,20 +1,27 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { CLUB_STATUS_BADGES, CLUB_STATUSES } from "@/lib/labels";
+import { CLUB_STATUS_BADGES, SUBMITTED_CLUB_STATUSES } from "@/lib/labels";
 import type { ClubStatus } from "@/lib/types";
-import type { FormEvent } from "react";
+import type { FormEvent, ReactNode } from "react";
 
 interface ClubFiltersProps {
   status: ClubStatus | null;
   search: string;
   onChange: (filters: { status: ClubStatus | null; search: string }) => void;
+  /** Rendered after the search box. */
+  actions?: ReactNode;
 }
 
 /** Status tabs and a name search for the admin's list of every club. */
-export function ClubFilters({ status, search, onChange }: ClubFiltersProps) {
+export function ClubFilters({
+  status,
+  search,
+  onChange,
+  actions,
+}: ClubFiltersProps) {
   const tabs: { label: string; value: ClubStatus | null }[] = [
     { label: "All", value: null },
-    ...CLUB_STATUSES.map((value) => ({
+    ...SUBMITTED_CLUB_STATUSES.map((value) => ({
       label: CLUB_STATUS_BADGES[value].label,
       value,
     })),
@@ -27,7 +34,7 @@ export function ClubFilters({ status, search, onChange }: ClubFiltersProps) {
   };
 
   return (
-    <div className="flex flex-col gap-4 px-4 py-4 sm:px-6 xl:flex-row xl:items-center xl:justify-between">
+    <div className="flex flex-col gap-4 px-4 py-4 sm:px-6 xl:flex-row xl:items-center">
       <div className="flex flex-wrap gap-2">
         {tabs.map((tab) => (
           <Button
@@ -47,7 +54,7 @@ export function ClubFilters({ status, search, onChange }: ClubFiltersProps) {
         key={search}
         role="search"
         onSubmit={submitSearch}
-        className="flex gap-2 xl:w-80"
+        className="flex gap-2 xl:ml-auto xl:w-80"
       >
         <Input
           type="search"
@@ -61,6 +68,7 @@ export function ClubFilters({ status, search, onChange }: ClubFiltersProps) {
           Search
         </Button>
       </form>
+      {actions}
     </div>
   );
 }

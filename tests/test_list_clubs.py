@@ -47,7 +47,8 @@ def clubs(client, db, lead, other_lead):
     d = create_club(client, other_lead, name="D")["id"]
     e = create_club(client, lead, name="E")["id"]
     set_state(db, a, ClubStatus.submitted, days_ago=2)
-    set_state(db, b, ClubStatus.drafting, days_ago=9)
+    # Not drafting: an admin doesn't see drafts (test_draft_privacy.py).
+    set_state(db, b, ClubStatus.changes_requested, days_ago=9)
     set_state(db, c, ClubStatus.submitted, days_ago=7)
     set_state(db, d, ClubStatus.under_review, days_ago=4)
     set_state(db, e, ClubStatus.submitted, days_ago=5)
@@ -93,7 +94,9 @@ def test_requires_auth(client):
 
 
 def test_admin_queue_submitted_oldest_first(client, admin, clubs):
-    result = list_clubs(client, admin, [("status", "submitted"), ("sort", "oldest")])
+    result = list_clubs(
+        client, admin, [("status", "submitted"), ("sort", "updated"), ("order", "asc")]
+    )
     # c (7 days) -> e (5 days) -> a (2 days); id order would have been a, c, e.
     assert ids_of_ours(result, clubs) == [clubs["c"], clubs["e"], clubs["a"]]
     assert {club["status"] for club in result} == {"submitted"}
@@ -103,7 +106,12 @@ def test_admin_queue_submitted_and_under_review(client, admin, clubs):
     result = list_clubs(
         client,
         admin,
-        [("status", "submitted"), ("status", "under_review"), ("sort", "oldest")],
+        [
+            ("status", "submitted"),
+            ("status", "under_review"),
+            ("sort", "updated"),
+            ("order", "asc"),
+        ],
     )
     assert ids_of_ours(result, clubs) == [
         clubs["c"],
@@ -119,13 +127,13 @@ def test_status_filter_without_sort_keeps_default_order(client, admin, clubs):
 
 
 def test_sort_without_status_filter(client, admin, clubs):
-    result = list_clubs(client, admin, [("sort", "oldest")])
+    result = list_clubs(client, admin, [("sort", "updated"), ("order", "asc")])
     # b (9 days) -> c (7) -> e (5) -> d (4) -> a (2)
     assert ids_of_ours(result, clubs) == [clubs[k] for k in "bceda"]
 
 
-def test_sort_newest_is_reverse_of_oldest(client, admin, clubs):
-    result = list_clubs(client, admin, [("sort", "newest")])
+def test_sort_updated_desc_is_reverse_of_asc(client, admin, clubs):
+    result = list_clubs(client, admin, [("sort", "updated"), ("order", "desc")])
     # a (2 days) -> d (4) -> e (5) -> c (7) -> b (9)
     assert ids_of_ours(result, clubs) == [clubs[k] for k in "adecb"]
 
@@ -136,13 +144,18 @@ def test_admin_recently_decided_view(client, db, admin, clubs):
     result = list_clubs(
         client,
         admin,
-        [("status", "approved"), ("status", "rejected"), ("sort", "newest")],
+        [
+            ("status", "approved"),
+            ("status", "rejected"),
+            ("sort", "updated"),
+            ("order", "desc"),
+        ],
     )
     assert ids_of_ours(result, clubs) == [clubs["d"], clubs["b"]]
 
 
 def test_club_lead_newest_still_scoped_to_own_clubs(client, lead, clubs):
-    assert ids(list_clubs(client, lead, [("sort", "newest")])) == [
+    assert ids(list_clubs(client, lead, [("sort", "updated"), ("order", "desc")])) == [
         clubs["a"],
         clubs["e"],
         clubs["b"],
@@ -150,15 +163,15 @@ def test_club_lead_newest_still_scoped_to_own_clubs(client, lead, clubs):
 
 
 def test_filter_works_for_any_status(client, admin, clubs):
-    drafting = list_clubs(client, admin, [("status", "drafting")])
-    assert ids_of_ours(drafting, clubs) == [clubs["b"]]
+    changes = list_clubs(client, admin, [("status", "changes_requested")])
+    assert ids_of_ours(changes, clubs) == [clubs["b"]]
     approved = list_clubs(client, admin, [("status", "approved")])
     assert ids_of_ours(approved, clubs) == []
 
 
 def test_club_lead_filter_still_scoped_to_own_clubs(client, lead, other_lead, clubs):
     # c is the oldest submitted club overall, but it belongs to other_lead.
-    params = [("status", "submitted"), ("sort", "oldest")]
+    params = [("status", "submitted"), ("sort", "updated"), ("order", "asc")]
     assert ids(list_clubs(client, lead, params)) == [clubs["e"], clubs["a"]]
     assert ids(list_clubs(client, other_lead, params)) == [clubs["c"]]
 
@@ -170,9 +183,53 @@ def test_club_lead_filter_still_scoped_to_own_clubs(client, lead, other_lead, cl
         [("status", "SUBMITTED")],
         [("status", "")],
         [("sort", "sideways")],
-        [("sort", "NEWEST")],
+        [("sort", "UPDATED")],
+        [("sort", "documents")],
+        [("order", "sideways")],
     ],
 )
 def test_invalid_values_rejected_with_422(client, admin, clubs, params):
     response = client.get("/api/clubs", params=params, headers=auth(admin))
     assert response.status_code == 422
+
+
+# --- sortable columns -------------------------------------------------------
+
+
+def test_sort_by_name_asc_and_desc(client, admin, clubs):
+    ascending = list_clubs(client, admin, [("sort", "name"), ("order", "asc")])
+    descending = list_clubs(client, admin, [("sort", "name"), ("order", "desc")])
+    assert ids_of_ours(ascending, clubs) == [clubs[k] for k in "abcde"]
+    assert ids_of_ours(descending, clubs) == [clubs[k] for k in "edcba"]
+
+
+def test_sort_by_name_ignores_case(client, admin, db, lead):
+    ours = {
+        "b": create_club(client, lead, name="bridge")["id"],
+        "a": create_club(client, lead, name="Abacus")["id"],
+        "c": create_club(client, lead, name="Curling")["id"],
+    }
+    for club_id in ours.values():
+        set_state(db, club_id, ClubStatus.submitted, days_ago=1)
+    result = list_clubs(client, admin, [("sort", "name"), ("order", "asc")])
+    assert ids_of_ours(result, ours) == [ours["a"], ours["b"], ours["c"]]
+
+
+def test_sort_by_owner_then_id(client, db, admin, lead, other_lead, clubs):
+    lead.name, other_lead.name = "Zara", "Adam"
+    db.commit()
+    ascending = list_clubs(client, admin, [("sort", "owner"), ("order", "asc")])
+    descending = list_clubs(client, admin, [("sort", "owner"), ("order", "desc")])
+    assert ids_of_ours(ascending, clubs) == [clubs[k] for k in "cdabe"]
+    assert ids_of_ours(descending, clubs) == [clubs[k] for k in "ebadc"]
+
+
+def test_sort_by_status_follows_lifecycle_order(client, admin, clubs):
+    result = list_clubs(client, admin, [("sort", "status"), ("order", "asc")])
+    # submitted (a, c, e by id) -> under_review (d) -> changes_requested (b)
+    assert ids_of_ours(result, clubs) == [clubs[k] for k in "acedb"]
+
+
+def test_order_without_sort_keeps_default_order(client, admin, clubs):
+    result = list_clubs(client, admin, [("order", "desc")])
+    assert ids_of_ours(result, clubs) == [clubs[k] for k in "abcde"]

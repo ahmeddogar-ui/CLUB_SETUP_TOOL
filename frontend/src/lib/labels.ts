@@ -1,4 +1,12 @@
-import type { ClubStatus, RequirementStatus, RequirementType } from "./types";
+import type {
+  ClubStatus,
+  EventType,
+  RequirementStatus,
+  RequirementType,
+  UserRole,
+} from "./types";
+
+import { REQUEST_EVENT_LABELS } from "./request-labels";
 
 type BadgeColor = "primary" | "success" | "error" | "warning" | "info" | "gray";
 
@@ -24,6 +32,11 @@ export const CLUB_STATUSES: readonly ClubStatus[] = [
   "rejected",
 ];
 
+/** The statuses an admin sees: a drafting club is its lead's own. */
+export const SUBMITTED_CLUB_STATUSES = CLUB_STATUSES.filter(
+  (status) => status !== "drafting",
+);
+
 export function isClubStatus(value: string | null): value is ClubStatus {
   return CLUB_STATUSES.some((status) => status === value);
 }
@@ -47,7 +60,8 @@ export const REQUIREMENT_LABELS: Record<RequirementType, string> = {
   exec_onboarding: "Executive onboarding",
 };
 
-export const EVENT_LABELS: Record<string, string> = {
+export const EVENT_LABELS: Record<EventType, string> = {
+  ...REQUEST_EVENT_LABELS,
   created: "Club created",
   submitted: "Submitted for review",
   review_started: "Review started",
@@ -58,7 +72,16 @@ export const EVENT_LABELS: Record<string, string> = {
   requirement_submitted: "Document provided",
   requirement_approved: "Requirement approved",
   requirement_rejected: "Requirement rejected",
+  comment_posted: "Comment posted",
+  role_changed: "Role changed",
 };
+
+/** Every event type, in the order the activity filter lists them. */
+export const EVENT_TYPES = Object.keys(EVENT_LABELS) as EventType[];
+
+export function isEventType(value: string | null): value is EventType {
+  return EVENT_TYPES.some((type) => type === value);
+}
 
 export const EDITABLE_STATUSES: readonly ClubStatus[] = [
   "drafting",
@@ -108,3 +131,12 @@ export function formatWaiting(isoTimestamp: string): string {
   if (days < 1) return "Less than a day";
   return days === 1 ? "1 day" : `${days} days`;
 }
+
+export const USER_ROLE_LABELS: Record<UserRole, string> = {
+  club_lead: "Club lead",
+  admin: "Admin",
+  finance_approver: "Finance approver",
+};
+
+/** Every role, in the order the users page lists them. */
+export const USER_ROLES = Object.keys(USER_ROLE_LABELS) as UserRole[];

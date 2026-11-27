@@ -1,15 +1,18 @@
 from dataclasses import dataclass
 from enum import Enum
+from typing import Any
 
-from sqlalchemy import ColumnElement, ScalarSelect, func, select
+from sqlalchemy import ColumnElement, ScalarSelect, func, or_, select
 from sqlalchemy.orm import Query, Session
 
 from app.exceptions import Conflict, Forbidden, NotFound
+from app.listing import contains
 from app.models import (
     DOCUMENT_PROVIDED_STATUSES,
-    ClubEvent,
     Clubs,
     ClubStatus,
+    Event,
+    EventType,
     Requirement,
     RequirementKind,
     RequirementStatus,
@@ -31,9 +34,25 @@ INITIAL_REQUIREMENTS = (
 )
 
 
-class ClubSort(str, Enum):
-    oldest = "oldest"
-    newest = "newest"
+class ClubSortField(str, Enum):
+    name = "name"
+    owner = "owner"
+    status = "status"
+    updated = "updated"
+
+
+class SortOrder(str, Enum):
+    asc = "asc"
+    desc = "desc"
+
+
+# Status sorts in lifecycle order: Postgres orders an enum by declaration.
+_SORT_COLUMNS = {
+    ClubSortField.name: func.lower(Clubs.name),
+    ClubSortField.owner: func.lower(User.name),
+    ClubSortField.status: Clubs.status,
+    ClubSortField.updated: Clubs.updated_at,
+}
 
 
 def create_club_for_user(db: Session, user: User, name: str, description: str) -> Clubs:
@@ -61,10 +80,10 @@ def create_club_for_user(db: Session, user: User, name: str, description: str) -
         )
 
     db.add(
-        ClubEvent(
+        Event(
             club_id=club.id,
             actor_id=user.id,
-            event_type="created",
+            event_type=EventType.created,
             from_status=None,
             to_status=ClubStatus.drafting,
         )
@@ -107,52 +126,79 @@ def _document_count(*conditions: ColumnElement[bool]) -> ScalarSelect[int]:
     )
 
 
-def _name_contains(search: str) -> ColumnElement[bool]:
-    """Case-insensitive substring match; % and _ in the search match literally."""
-    escaped = search.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
-    return Clubs.name.ilike(f"%{escaped}%", escape="\\")
+def _visible_clubs(db: Session, user: User) -> Query[Clubs]:
+    """Role scoping, the same rule as ensure_owner_or_admin; the filters
+    applied on top only ever narrow this set."""
+    visible = db.query(Clubs)
+    if user.role == UserRole.admin:
+        return visible.filter(
+            or_(Clubs.status != ClubStatus.drafting, Clubs.submitter_id == user.id)
+        )
+    return visible.filter(Clubs.submitter_id == user.id)
+
+
+def _filtered(
+    visible: Query[Clubs], statuses: list[ClubStatus] | None, search: str | None
+) -> Query[Clubs]:
+    query = visible
+    if statuses:
+        query = query.filter(Clubs.status.in_(statuses))
+    if search:
+        query = query.filter(contains(Clubs.name, search))
+    return query
+
+
+def _summaries(
+    query: Query[Clubs], sort: ClubSortField | None, order: SortOrder
+) -> Query[Any]:
+    """The filtered clubs in order, with owner name and document counts."""
+    return _ordered(
+        query.join(User, User.id == Clubs.submitter_id), sort, order
+    ).add_columns(
+        User.name,
+        _document_count(Requirement.status.in_(DOCUMENT_PROVIDED_STATUSES)),
+        _document_count(),
+    )
+
+
+def _to_summaries(rows: list[Any]) -> list[ClubSummary]:
+    return [
+        ClubSummary(club, owner_name, provided, total)
+        for club, owner_name, provided, total in rows
+    ]
 
 
 def list_clubs_for_user(
     db: Session,
     user: User,
     statuses: list[ClubStatus] | None,
-    sort: ClubSort | None,
+    sort: ClubSortField | None,
+    order: SortOrder,
     search: str | None,
     limit: int,
     offset: int,
 ) -> ClubPage:
-    visible = db.query(Clubs)
-    # Role scoping first; the filters below only ever narrow this set.
-    if user.role != UserRole.admin:
-        visible = visible.filter(Clubs.submitter_id == user.id)
-
-    query = visible
-    if statuses:
-        query = query.filter(Clubs.status.in_(statuses))
-    if search:
-        query = query.filter(_name_contains(search))
-
-    rows = (
-        _ordered(query, sort)
-        .join(User, User.id == Clubs.submitter_id)
-        .add_columns(
-            User.name,
-            _document_count(Requirement.status.in_(DOCUMENT_PROVIDED_STATUSES)),
-            _document_count(),
-        )
-        .limit(limit)
-        .offset(offset)
-        .all()
-    )
+    visible = _visible_clubs(db, user)
+    query = _filtered(visible, statuses, search)
+    rows = _summaries(query, sort, order).limit(limit).offset(offset).all()
     return ClubPage(
-        items=[
-            ClubSummary(club, owner_name, provided, total)
-            for club, owner_name, provided, total in rows
-        ],
+        items=_to_summaries(rows),
         total=query.count(),
         status_counts=_count_by_status(visible),
     )
+
+
+def export_clubs(
+    db: Session,
+    user: User,
+    statuses: list[ClubStatus] | None,
+    sort: ClubSortField | None,
+    order: SortOrder,
+    search: str | None,
+) -> list[ClubSummary]:
+    """Every club matching the filters, unpaged."""
+    query = _filtered(_visible_clubs(db, user), statuses, search)
+    return _to_summaries(_summaries(query, sort, order).all())
 
 
 def _count_by_status(visible: Query[Clubs]) -> dict[ClubStatus, int]:
@@ -163,14 +209,16 @@ def _count_by_status(visible: Query[Clubs]) -> dict[ClubStatus, int]:
     return {status: counts.get(status, 0) for status in ClubStatus}
 
 
-def _ordered(query: Query[Clubs], sort: ClubSort | None) -> Query[Clubs]:
-    if sort == ClubSort.oldest:
-        # Longest-waiting first; id breaks ties between identical timestamps.
-        return query.order_by(Clubs.updated_at.asc(), Clubs.id.asc())
-    if sort == ClubSort.newest:
-        # Most recently changed first; the exact reverse of oldest.
-        return query.order_by(Clubs.updated_at.desc(), Clubs.id.desc())
-    return query.order_by(Clubs.id.asc())
+def _ordered(
+    query: Query[Clubs], sort: ClubSortField | None, order: SortOrder
+) -> Query[Clubs]:
+    """Creation order unless a column is chosen. id breaks ties in the same
+    direction, so asc and desc are exact reverses and paging is stable."""
+    if sort is None:
+        return query.order_by(Clubs.id.asc())
+    if order == SortOrder.asc:
+        return query.order_by(_SORT_COLUMNS[sort].asc(), Clubs.id.asc())
+    return query.order_by(_SORT_COLUMNS[sort].desc(), Clubs.id.desc())
 
 
 def get_club(db: Session, club_id: int) -> Clubs:
@@ -197,8 +245,14 @@ def get_club_for_update(db: Session, club_id: int) -> Clubs:
 
 
 def ensure_owner_or_admin(club: Clubs, user: User) -> None:
-    if user.role != UserRole.admin and club.submitter_id != user.id:
+    """The lead sees their club; admins see it once it has been submitted.
+    A draft is the lead's own until then."""
+    if club.submitter_id == user.id:
+        return
+    if user.role != UserRole.admin:
         raise Forbidden("Not your club")
+    if club.status == ClubStatus.drafting:
+        raise Forbidden("This club is still a draft")
 
 
 def ensure_owner(club: Clubs, user: User) -> None:
@@ -264,13 +318,18 @@ def review_club(
     return attempt_transition(db, club, to_status, admin, note)
 
 
-def list_club_events(db: Session, club_id: int) -> list[tuple[ClubEvent, str]]:
-    """Newest first, with the actor's name; served by idx_events_club_time."""
+def list_club_events(db: Session, club_id: int) -> list[tuple[Event, str]]:
+    """The club's registration history, newest first, with the actor's name;
+    served by idx_events_club_time. Comments and requests have their own."""
     return (
-        db.query(ClubEvent, User.name)
-        .join(User, User.id == ClubEvent.actor_id)
-        .filter(ClubEvent.club_id == club_id)
-        .order_by(ClubEvent.created_at.desc(), ClubEvent.id.desc())
+        db.query(Event, User.name)
+        .join(User, User.id == Event.actor_id)
+        .filter(
+            Event.club_id == club_id,
+            Event.event_type != EventType.comment_posted,
+            Event.request_id.is_(None),
+        )
+        .order_by(Event.created_at.desc(), Event.id.desc())
         .tuples()
         .all()
     )

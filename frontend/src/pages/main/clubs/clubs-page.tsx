@@ -4,19 +4,28 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useAuth } from "@/contexts";
 import { PlusIcon } from "@/icons";
+import { apiDownload } from "@/lib/api";
 import { isClubStatus } from "@/lib/labels";
 import type { ClubPage, ClubStatus } from "@/lib/types";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { Link, useSearchParams } from "react-router";
+import { toast } from "sonner";
 import { ClubFilters } from "./club-filters";
-import { CLUBS_PAGE_SIZE, clubPageQuery, readPage } from "./club-page-query";
+import {
+  CLUBS_PAGE_SIZE,
+  type ClubSort,
+  clubFilterParams,
+  clubPageQuery,
+  readPage,
+  readSort,
+} from "./club-page-query";
 import { ClubsTable, type EmptyState, pastLastPage } from "./clubs-table";
-import { Pager } from "./pager";
+import { Pager } from "@/components/shared/pager";
 import { StatusSummary } from "./status-summary";
 
 /** A lead's own clubs, or every club for an admin (with filters, search and a
- * summary). The status, search and page live in the URL, so they survive a
- * reload and the back button. */
+ * summary). The status, search, sort and page live in the URL, so they
+ * survive a reload and the back button. */
 export default function ClubsPage() {
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
@@ -26,26 +35,38 @@ export default function ClubsPage() {
   const status = isClubStatus(statusParam) ? statusParam : null;
   const search = searchParams.get("q") ?? "";
   const page = readPage(searchParams);
+  const sort = readSort(searchParams);
 
-  const clubs = useQuery(
-    clubPageQuery({
-      statuses: status ? [status] : [],
-      search,
-      sort: "newest",
-      page,
-    }),
-  );
+  const statuses = status ? [status] : [];
+  const clubs = useQuery(clubPageQuery({ statuses, search, sort, page }));
+  const exportClubs = useMutation({
+    mutationFn: () =>
+      apiDownload(
+        `/clubs/export.csv?${clubFilterParams({ statuses, search, sort })}`,
+        "clubs.csv",
+      ),
+    meta: { successMessage: "Export downloaded" },
+    onError: (error) => toast.error(error.message),
+  });
 
-  // A new filter starts again from page 1.
+  // A new filter or sort starts again from page 1.
+  const showList = (list: {
+    status: ClubStatus | null;
+    search: string;
+    sort: ClubSort;
+  }) => {
+    const params = new URLSearchParams({
+      sort: list.sort.field,
+      order: list.sort.order,
+    });
+    if (list.status) params.set("status", list.status);
+    if (list.search) params.set("q", list.search);
+    setSearchParams(params);
+  };
   const showFilters = (filters: {
     status: ClubStatus | null;
     search: string;
-  }) => {
-    const params = new URLSearchParams();
-    if (filters.status) params.set("status", filters.status);
-    if (filters.search) params.set("q", filters.search);
-    setSearchParams(params);
-  };
+  }) => showList({ ...filters, sort });
 
   const showPage = (nextPage: number) => {
     const params = new URLSearchParams(searchParams);
@@ -65,7 +86,7 @@ export default function ClubsPage() {
   return (
     <div>
       <PageMeta
-        title="Clubs | Club Setup"
+        title="Clubs"
         description="Clubs and their registration status"
       />
       <PageBreadcrumb pageTitle={isAdmin ? "All clubs" : "My clubs"} />
@@ -76,7 +97,21 @@ export default function ClubsPage() {
 
       <Card className="w-full gap-0 overflow-hidden rounded-2xl border border-gray-200 bg-white p-0 sm:p-0 dark:border-gray-800 dark:bg-white/3">
         {isAdmin ? (
-          <ClubFilters status={status} search={search} onChange={showFilters} />
+          <ClubFilters
+            status={status}
+            search={search}
+            onChange={showFilters}
+            actions={
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={exportClubs.isPending}
+                onClick={() => exportClubs.mutate()}
+              >
+                Export CSV
+              </Button>
+            }
+          />
         ) : (
           <div className="flex justify-end px-4 py-4 sm:px-6">
             <NewClubButton label="New club" />
@@ -85,11 +120,16 @@ export default function ClubsPage() {
 
         <ClubsTable
           clubs={clubs.data?.items}
-          isLoading={clubs.isLoading}
+          isLoading={clubs.isLoading || clubs.isPlaceholderData}
           error={clubs.error}
           showOwner={isAdmin}
           timeColumn="last-updated"
           emptyState={emptyState}
+          sorting={{
+            sort,
+            onSortChange: (nextSort) =>
+              showList({ status, search, sort: nextSort }),
+          }}
         />
         <Pager
           page={page}

@@ -4,9 +4,10 @@ from sqlalchemy.orm import Session
 
 from app.exceptions import Conflict, NotFound
 from app.models import (
-    ClubEvent,
     Clubs,
     ClubStatus,
+    Event,
+    EventType,
     Requirement,
     RequirementKind,
     RequirementStatus,
@@ -48,7 +49,7 @@ def _record_requirement_event(
     db: Session,
     club: Clubs,
     requirement: Requirement,
-    event_type: str,
+    event_type: EventType,
     actor: User,
     note: str | None = None,
     link_url: str | None = None,
@@ -56,7 +57,7 @@ def _record_requirement_event(
     # The club's status doesn't move on a requirement action, so from == to.
     # Added to the same session as the requirement change, so one commit saves both.
     db.add(
-        ClubEvent(
+        Event(
             club_id=club.id,
             actor_id=actor.id,
             event_type=event_type,
@@ -100,7 +101,7 @@ def set_requirement_link(
         db,
         club,
         requirement,
-        "requirement_submitted",
+        EventType.requirement_submitted,
         user,
         link_url=requirement.link_url,
     )
@@ -136,7 +137,7 @@ def approve_requirement(
         db,
         club,
         requirement,
-        "requirement_approved",
+        EventType.requirement_approved,
         admin,
         note=requirement.reviewer_note,
     )
@@ -158,7 +159,7 @@ def reject_requirement(
     requirement.status = RequirementStatus.rejected
     requirement.reviewer_note = note
     _record_requirement_event(
-        db, club, requirement, "requirement_rejected", admin, note=note
+        db, club, requirement, EventType.requirement_rejected, admin, note=note
     )
 
     db.commit()

@@ -4,7 +4,7 @@ import pytest
 from sqlalchemy import delete
 from sqlalchemy.exc import IntegrityError
 
-from app.models import ClubEvent, Clubs, ClubStatus, Requirement
+from app.models import Clubs, ClubStatus, Event, Requirement
 from app.services.clubs import INITIAL_REQUIREMENTS
 from tests.conftest import auth, create_club, make_club
 
@@ -74,7 +74,7 @@ def test_create_writes_full_requirement_set_and_one_created_event(client, db, le
     )
     assert all(r.status.value == "pending" and r.link_url is None for r in requirements)
 
-    events = db.query(ClubEvent).filter(ClubEvent.club_id == club["id"]).all()
+    events = db.query(Event).filter(Event.club_id == club["id"]).all()
     assert [(e.event_type, e.from_status, e.to_status, e.actor_id) for e in events] == [
         ("created", None, ClubStatus.drafting, lead.id)
     ]
@@ -98,8 +98,12 @@ def test_two_clubs_get_independent_requirement_rows(client, db, lead):
 
 
 @pytest.mark.parametrize("viewer", ["lead", "admin"])
-def test_owner_and_admin_can_read_detail(client, request, lead, viewer):
+def test_owner_and_admin_can_read_detail(client, db, request, lead, viewer):
     club = create_club(client, lead)
+    # Admins see a club once it is submitted; a draft is its lead's own.
+    db.get(Clubs, club["id"]).status = ClubStatus.submitted
+    db.commit()
+    club["status"] = "submitted"
     user = request.getfixturevalue(viewer)
 
     response = client.get(f"/api/clubs/{club['id']}", headers=auth(user))
@@ -214,6 +218,6 @@ def test_deleting_a_club_with_history_is_refused_by_the_foreign_key(db, lead):
     # History is permanent: the events' foreign key forbids deleting their club,
     # rather than cascading into the append-only trigger.
     club = make_club(db, lead)
-    with pytest.raises(IntegrityError, match="fk_club_events_club_id"):
+    with pytest.raises(IntegrityError, match="fk_events_club_id"):
         db.execute(delete(Clubs).where(Clubs.id == club.id))
     db.rollback()

@@ -20,11 +20,13 @@ import { useClubMutation } from "./use-club-mutation";
 export function EditClubDialog({ club }: { club: Club }) {
   const [isOpen, setIsOpen] = useState(false);
 
-  const updateClub = useClubMutation((data: ClubFormData) =>
-    apiFetch(`/clubs/${club.id}`, {
-      method: "PATCH",
-      body: JSON.stringify(data),
-    }),
+  const updateClub = useClubMutation(
+    (data: ClubFormData) =>
+      apiFetch(`/clubs/${club.id}`, {
+        method: "PATCH",
+        body: JSON.stringify(data),
+      }),
+    "Club updated",
   );
 
   const {

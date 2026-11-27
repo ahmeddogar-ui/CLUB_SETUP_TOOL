@@ -62,7 +62,7 @@ export function HistoryCard({ events, requirements }: HistoryCardProps) {
                     {formatDateTime(event.created_at)}
                   </TableCell>
                   <TableCell className="px-6 py-4 text-start text-sm text-gray-800 dark:text-white/90">
-                    {EVENT_LABELS[event.event_type] ?? event.event_type}
+                    {EVENT_LABELS[event.event_type]}
                     {subject && (
                       <span className="text-gray-500 dark:text-gray-400">
                         {" "}

@@ -175,7 +175,7 @@ describe("route guards", () => {
     renderApp("/");
 
     expect(
-      await screen.findByRole("heading", { name: "Sign In" }),
+      await screen.findByRole("link", { name: "Sign in" }),
     ).toBeInTheDocument();
     expect(localStorage.getItem(TOKEN_KEY)).toBeNull();
   });
@@ -192,7 +192,7 @@ describe("route guards", () => {
     renderApp("/", { signedInAs: LEAD });
 
     expect(
-      await screen.findByRole("heading", { name: "Sign In" }),
+      await screen.findByRole("link", { name: "Sign in" }),
     ).toBeInTheDocument();
     expect(localStorage.getItem(TOKEN_KEY)).toBeNull();
   });
@@ -214,7 +214,7 @@ describe("route guards", () => {
     );
 
     expect(
-      await screen.findByRole("heading", { name: "Sign In" }),
+      await screen.findByRole("link", { name: "Sign in" }),
     ).toBeInTheDocument();
     expect(loggedOut).toBe(true);
     expect(localStorage.getItem(TOKEN_KEY)).toBeNull();

@@ -49,7 +49,7 @@ os.environ["ENABLE_API_DOCS"] = "false"
 
 from alembic.config import Config  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
-from sqlalchemy import create_engine  # noqa: E402
+from sqlalchemy import create_engine, text  # noqa: E402
 from sqlalchemy.orm import Session  # noqa: E402
 
 from alembic import command  # noqa: E402
@@ -57,9 +57,9 @@ from app.core.security import create_access_token, hash_password  # noqa: E402
 from app.database import get_db  # noqa: E402
 from app.main import app  # noqa: E402
 from app.models import (  # noqa: E402
-    ClubEvent,
     Clubs,
     ClubStatus,
+    Event,
     Requirement,
     RequirementKind,
     RequirementStatus,
@@ -94,6 +94,25 @@ def db(engine):
     session.close()
     transaction.rollback()
     connection.close()
+
+
+@pytest.fixture
+def committed_db(engine):
+    """A session whose commits are real. The test database is disposable, so
+    afterwards every table is emptied. TRUNCATE doesn't fire the append-only
+    trigger on events, which only guards row-level UPDATE and DELETE."""
+    with Session(engine) as session:
+        yield session
+    # Must list every table but rooms (reference data from a migration), or
+    # rows from this test leak into the next run.
+    with engine.begin() as connection:
+        connection.execute(
+            text(
+                "TRUNCATE users, clubs, requirements, events, refresh_tokens, "
+                "requests, funding_line_items, request_approvals "
+                "RESTART IDENTITY CASCADE"
+            )
+        )
 
 
 @pytest.fixture
@@ -189,7 +208,7 @@ def make_club(
     ready to be approved, or RequirementStatus.submitted for one mid-review.
     Leave it None to keep the default `pending` on every requirement.
 
-    This writes rows straight into the DB and does not emit ClubEvent rows for
+    This writes rows straight into the DB and does not emit Event rows for
     the skipped transitions -- it is not a substitute for tests that exercise
     the transition endpoints themselves, only for tests that need a club
     already sitting in some state to test something else.
@@ -219,7 +238,7 @@ def make_club(
         )
 
     db.add(
-        ClubEvent(
+        Event(
             club_id=club.id,
             actor_id=owner.id,
             event_type="created",

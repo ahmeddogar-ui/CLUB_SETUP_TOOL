@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Annotated
+from typing import Annotated, Literal
 
 from pydantic import (
     AnyHttpUrl,
@@ -13,11 +13,16 @@ from pydantic import (
 
 from app.models import (
     ClubStatus,
+    EventType,
+    RequestStatus,
+    RequestType,
     RequirementKind,
     RequirementStatus,
     RequirementType,
     UserRole,
 )
+from app.request_transitions import RequestAction
+from app.request_types import RequestDetails
 
 PERSON_NAME_MAX_LENGTH = 100
 # The longest address email-validator accepts (RFC 5321).
@@ -28,6 +33,8 @@ PASSWORD_MAX_LENGTH = 128
 CLUB_NAME_MAX_LENGTH = 100
 DESCRIPTION_MAX_LENGTH = 2000
 NOTE_MAX_LENGTH = 2000
+COMMENT_MAX_LENGTH = 2000
+REQUEST_TITLE_MAX_LENGTH = 120
 URL_MAX_LENGTH = 2048
 SEARCH_MAX_LENGTH = 100
 PAGE_SIZE_DEFAULT = 20
@@ -75,6 +82,32 @@ class UserOut(BaseModel):
     role: UserRole
 
     model_config = {"from_attributes": True}
+
+
+class UserUpdateRequest(BaseModel):
+    name: PersonName
+
+
+class PasswordChangeRequest(BaseModel):
+    current_password: str = Field(max_length=PASSWORD_MAX_LENGTH)
+    new_password: str = Field(
+        min_length=PASSWORD_MIN_LENGTH, max_length=PASSWORD_MAX_LENGTH
+    )
+
+
+class UserListItemOut(UserOut):
+    created_at: datetime
+
+
+class RoleChangeRequest(BaseModel):
+    role: UserRole
+
+
+class Page[T](BaseModel):
+    """One page of a list: `total` counts every match, across all pages."""
+
+    items: list[T]
+    total: int
 
 
 class ClubCreateRequest(BaseModel):
@@ -131,11 +164,11 @@ class RequirementLinkRequest(BaseModel):
 
 class ClubEventOut(BaseModel):
     id: int
-    event_type: str
+    event_type: EventType
     requirement_id: int | None
     link_url: str | None
     from_status: ClubStatus | None
-    to_status: ClubStatus
+    to_status: ClubStatus | None
     note: str | None
     actor_name: str
     created_at: datetime
@@ -151,3 +184,137 @@ class RequirementOut(BaseModel):
     reviewer_note: str | None
 
     model_config = {"from_attributes": True}
+
+
+class CommentRequest(BaseModel):
+    body: Annotated[
+        str,
+        StringConstraints(
+            strip_whitespace=True, min_length=1, max_length=COMMENT_MAX_LENGTH
+        ),
+    ]
+
+
+class CommentOut(BaseModel):
+    id: int
+    body: str
+    author_name: str
+    author_role: UserRole
+    created_at: datetime
+
+
+class ActivityOut(BaseModel):
+    id: int
+    event_type: EventType
+    created_at: datetime
+    actor_id: int
+    actor_name: str
+    club_id: int | None
+    club_name: str | None
+    subject_user_id: int | None
+    subject_user_name: str | None
+    request_id: int | None
+    request_title: str | None
+    requirement_type: RequirementType | None
+    from_status: ClubStatus | None
+    to_status: ClubStatus | None
+    note: str | None
+
+
+RequestTitle = Annotated[
+    str,
+    StringConstraints(
+        strip_whitespace=True, min_length=1, max_length=REQUEST_TITLE_MAX_LENGTH
+    ),
+]
+
+
+class RequestCreateRequest(BaseModel):
+    title: RequestTitle
+    details: RequestDetails
+
+
+class RequestUpdateRequest(BaseModel):
+    title: RequestTitle | None = None
+    details: RequestDetails | None = None
+
+
+class RoomOut(BaseModel):
+    id: int
+    name: str
+    building: str
+    capacity: int
+
+    model_config = {"from_attributes": True}
+
+
+class LineItemOut(BaseModel):
+    description: str
+    amount_cents: int
+
+
+class FundingDetailsOut(BaseModel):
+    request_type: Literal[RequestType.funding] = RequestType.funding
+    line_items: list[LineItemOut]
+    total_cents: int
+
+
+class RoomBookingDetailsOut(BaseModel):
+    request_type: Literal[RequestType.room_booking] = RequestType.room_booking
+    room_id: int
+    room_name: str
+    starts_at: datetime
+    ends_at: datetime
+
+
+class ApprovalOut(BaseModel):
+    step: int
+    role: UserRole
+    approver_name: str
+    approved_at: datetime
+    note: str | None
+
+
+class RequestListItemOut(BaseModel):
+    id: int
+    club_id: int
+    club_name: str
+    request_type: RequestType
+    title: str
+    status: RequestStatus
+    awaiting_role: UserRole | None
+    created_by_name: str
+    updated_at: datetime
+    total_cents: int | None
+    room_name: str | None
+    starts_at: datetime | None
+    ends_at: datetime | None
+
+
+class RequestDetailOut(BaseModel):
+    id: int
+    club_id: int
+    club_name: str
+    request_type: RequestType
+    title: str
+    status: RequestStatus
+    round: int
+    awaiting_role: UserRole | None
+    created_by_id: int
+    created_by_name: str
+    created_at: datetime
+    updated_at: datetime
+    approval_steps: list[UserRole]
+    approvals: list[ApprovalOut]
+    details: FundingDetailsOut | RoomBookingDetailsOut
+    allowed_actions: list[RequestAction]
+    # The viewer may change the title and details (PATCH).
+    can_edit: bool
+
+
+class RequestEventOut(BaseModel):
+    id: int
+    event_type: EventType
+    actor_name: str
+    note: str | None
+    created_at: datetime

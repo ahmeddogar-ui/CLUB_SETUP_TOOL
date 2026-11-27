@@ -1,5 +1,6 @@
 import "@testing-library/jest-dom/vitest";
 import { cleanup } from "@testing-library/react";
+import { toast } from "sonner";
 import { afterAll, afterEach, beforeAll } from "vitest";
 import { server } from "./server";
 
@@ -27,6 +28,9 @@ server.events.on("request:unhandled", ({ request }) => {
 beforeAll(() => server.listen({ onUnhandledFrame: "error" }));
 
 afterEach(() => {
+  // sonner keeps toasts in a module-level store; without this, one test's
+  // toast reappears in the next test's Toaster.
+  toast.dismiss();
   cleanup();
   server.resetHandlers();
   localStorage.clear();

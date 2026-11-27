@@ -1,7 +1,13 @@
 import { server } from "@/test/server";
 import { http, HttpResponse } from "msw";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
-import { ApiError, apiFetch, SESSION_EXPIRED_EVENT, TOKEN_KEY } from "./api";
+import {
+  ApiError,
+  apiDownload,
+  apiFetch,
+  SESSION_EXPIRED_EVENT,
+  TOKEN_KEY,
+} from "./api";
 
 function listenForSessionExpiry() {
   const listener = vi.fn();
@@ -212,5 +218,88 @@ describe("apiFetch", () => {
       ).rejects.toMatchObject({ status: 401 });
       expect(sessionExpired).not.toHaveBeenCalled();
     });
+  });
+});
+
+describe("apiDownload", () => {
+  function stubObjectUrls() {
+    const createObjectURL = vi.fn(() => "blob:clubs");
+    const revokeObjectURL = vi.fn();
+    // jsdom has neither, so they're assigned (not spied) and left in place.
+    Object.assign(URL, { createObjectURL, revokeObjectURL });
+    return { createObjectURL, revokeObjectURL };
+  }
+
+  function captureClickedLink() {
+    const clicked: HTMLAnchorElement[] = [];
+    const click = vi
+      .spyOn(HTMLAnchorElement.prototype, "click")
+      .mockImplementation(function (this: HTMLAnchorElement) {
+        clicked.push(this);
+      });
+    onTestFinished(() => click.mockRestore());
+    return clicked;
+  }
+
+  it("saves the response as a file with the given name, then frees the URL", async () => {
+    const { createObjectURL, revokeObjectURL } = stubObjectUrls();
+    const clicked = captureClickedLink();
+    localStorage.setItem(TOKEN_KEY, "abc123");
+    let authorization: string | null = null;
+    server.use(
+      http.get("/api/echo", ({ request }) => {
+        authorization = request.headers.get("Authorization");
+        return new HttpResponse("id,name\n", {
+          headers: { "Content-Type": "text/csv" },
+        });
+      }),
+    );
+
+    await apiDownload("/echo", "clubs.csv");
+
+    expect(authorization).toBe("Bearer abc123");
+    expect(createObjectURL).toHaveBeenCalledOnce();
+    expect(clicked).toHaveLength(1);
+    expect(clicked[0].download).toBe("clubs.csv");
+    expect(clicked[0].href).toBe("blob:clubs");
+    // Freed after the click has been handled, not during it.
+    expect(revokeObjectURL).not.toHaveBeenCalled();
+    await vi.waitFor(() =>
+      expect(revokeObjectURL).toHaveBeenCalledWith("blob:clubs"),
+    );
+  });
+
+  it("throws ApiError and saves nothing when the request fails", async () => {
+    const { createObjectURL } = stubObjectUrls();
+    respondWith(403, { detail: "Admin access required" });
+
+    await expect(apiDownload("/echo", "clubs.csv")).rejects.toMatchObject({
+      status: 403,
+      message: "Admin access required",
+    });
+    expect(createObjectURL).not.toHaveBeenCalled();
+  });
+
+  it("refreshes an expired token once and retries", async () => {
+    stubObjectUrls();
+    captureClickedLink();
+    localStorage.setItem(TOKEN_KEY, "stale");
+    const seenTokens: (string | null)[] = [];
+    server.use(
+      http.get("/api/echo", ({ request }) => {
+        const header = request.headers.get("Authorization");
+        seenTokens.push(header);
+        return header === "Bearer fresh"
+          ? new HttpResponse("id\n")
+          : HttpResponse.json({ detail: "Expired" }, { status: 401 });
+      }),
+      http.post("/api/auth/refresh", () =>
+        HttpResponse.json({ access_token: "fresh", token_type: "bearer" }),
+      ),
+    );
+
+    await apiDownload("/echo", "clubs.csv");
+
+    expect(seenTokens).toEqual(["Bearer stale", "Bearer fresh"]);
   });
 });

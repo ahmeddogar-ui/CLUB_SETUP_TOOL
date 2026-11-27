@@ -9,14 +9,18 @@ from app.models import User
 from app.schemas import (
     EMAIL_MAX_LENGTH,
     PASSWORD_MAX_LENGTH,
+    PasswordChangeRequest,
     UserOut,
     UserRegisterRequest,
+    UserUpdateRequest,
 )
 from app.services.auth import (
+    change_password,
     log_in,
     refresh_access_token,
     register_user,
     revoke_refresh_token,
+    update_name,
 )
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -91,3 +95,28 @@ def logout(response: Response, db: DbSession, refresh_token: RefreshCookie = Non
 @router.get("/me", response_model=UserOut)
 def read_me(current_user: User = Depends(get_current_user)):
     return current_user
+
+
+@router.patch("/me", response_model=UserOut)
+def update_me(
+    payload: UserUpdateRequest,
+    db: DbSession,
+    current_user: User = Depends(get_current_user),
+):
+    return update_name(db, current_user, payload.name)
+
+
+@router.post("/me/password", status_code=status.HTTP_204_NO_CONTENT)
+def change_my_password(
+    payload: PasswordChangeRequest,
+    db: DbSession,
+    current_user: User = Depends(get_current_user),
+    refresh_token: RefreshCookie = None,
+):
+    change_password(
+        db,
+        current_user,
+        payload.current_password,
+        payload.new_password,
+        keep_refresh_token=refresh_token,
+    )

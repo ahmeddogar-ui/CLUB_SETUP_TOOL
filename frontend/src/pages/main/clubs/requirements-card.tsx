@@ -119,6 +119,7 @@ export function RequirementsCard({
                             title={`Approve ${label}`}
                             description="Optionally leave a note for the club."
                             triggerLabel="Approve"
+                            successMessage={`${label} approved`}
                             isNoteRequired={false}
                             size="xs"
                           />
@@ -129,6 +130,7 @@ export function RequirementsCard({
                             title={`Reject ${label}`}
                             description="Tell the club what needs to change."
                             triggerLabel="Reject"
+                            successMessage={`${label} rejected`}
                             isNoteRequired
                             variant="destructive"
                             size="xs"

@@ -4,10 +4,7 @@ import SignIn from "./index";
 export default function SignInPage() {
   return (
     <>
-      <PageMeta
-        title="Sign in | Club Setup"
-        description="Sign in to Club Setup"
-      />
+      <PageMeta title="Sign in" description="Sign in to Club Setup" />
       <SignIn />
     </>
   );
