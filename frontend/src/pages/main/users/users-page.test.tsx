@@ -54,7 +54,7 @@ describe("users page", () => {
     const { user } = renderApp("/users?page=2", { signedInAs: ADMIN });
 
     await user.click(
-      await screen.findByRole("button", { name: "Administrator" }),
+      await screen.findByRole("button", { name: "Admin" }),
     );
 
     await waitFor(() => expect(queries.at(-1)?.get("role")).toBe("admin"));
@@ -78,7 +78,7 @@ describe("users page", () => {
     );
 
     expect(
-      await screen.findByText("Lena Lead is now Administrator"),
+      await screen.findByText("Lena Lead is now Admin"),
     ).toBeInTheDocument();
     expect(sentBody).toEqual({ role: "admin" });
   });
@@ -109,7 +109,7 @@ describe("users page", () => {
     serveUsers([buildUserListItem({ ...ADMIN })]);
     renderApp("/users", { signedInAs: ADMIN });
 
-    expect(await screen.findByText("Administrator (you)")).toBeInTheDocument();
+    expect(await screen.findByText("Admin (you)")).toBeInTheDocument();
     expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
   });
 

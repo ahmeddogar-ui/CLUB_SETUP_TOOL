@@ -8,7 +8,7 @@ import { OctagonAlertIcon } from "@/icons";
 import { apiFetch } from "@/lib/api";
 import { formatDateTime, USER_ROLE_LABELS } from "@/lib/labels";
 import { COMMENT_MAX_LENGTH } from "@/lib/limits";
-import type { Comment } from "@/lib/types";
+import type { Comment, Page } from "@/lib/types";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   useInfiniteQuery,
@@ -19,11 +19,6 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 
 const COMMENTS_PAGE_SIZE = 20;
-
-interface CommentPage {
-  items: Comment[];
-  total: number;
-}
 
 const commentSchema = z.object({
   body: z
@@ -47,7 +42,7 @@ export function DiscussionCard({ clubId }: { clubId: string }) {
   const comments = useInfiniteQuery({
     queryKey,
     queryFn: ({ pageParam }) =>
-      apiFetch<CommentPage>(
+      apiFetch<Page<Comment>>(
         `/clubs/${clubId}/comments?limit=${COMMENTS_PAGE_SIZE}&offset=${pageParam}`,
       ),
     initialPageParam: 0,
