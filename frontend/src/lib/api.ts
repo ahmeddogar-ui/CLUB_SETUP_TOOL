@@ -90,5 +90,6 @@ export async function apiDownload(
   link.href = url;
   link.download = filename;
   link.click();
-  URL.revokeObjectURL(url);
+  // Revoking synchronously can cancel the download in Safari and Firefox.
+  setTimeout(() => URL.revokeObjectURL(url));
 }

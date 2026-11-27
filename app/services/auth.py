@@ -14,6 +14,7 @@ from app.core.security import (
 )
 from app.exceptions import Conflict, Forbidden, Unauthorized
 from app.models import RefreshToken, User, UserRole
+from app.services.users import ensure_role_change_allowed
 
 UNIQUE_EMAIL_CONSTRAINT = "uq_users_email"
 
@@ -103,10 +104,13 @@ def revoke_refresh_token(db: Session, refresh_token: str) -> None:
 
 
 def make_admin(db: Session, email: str) -> User | None:
-    """Gives an existing user the admin role. None if no such user."""
+    """The operator's fallback for granting the admin role (the first admin
+    has no one to promote them). None if no such user. Same rule as the users
+    page; no history event, as an operator at a terminal is no user."""
     user = db.query(User).filter(User.email == normalize_email(email)).first()
     if user is None:
         return None
+    ensure_role_change_allowed(db, user, UserRole.admin)
     user.role = UserRole.admin
     db.commit()
     db.refresh(user)

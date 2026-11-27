@@ -8,6 +8,7 @@ import argparse
 import sys
 
 from app.database import SessionLocal
+from app.exceptions import Conflict
 from app.seed import (
     DEMO_ADMIN_EMAIL,
     DEMO_LEAD_EMAIL,
@@ -37,7 +38,11 @@ def main(argv: list[str] | None = None) -> int:
 
 def _make_admin(email: str) -> int:
     with SessionLocal() as db:
-        user = make_admin(db, email)
+        try:
+            user = make_admin(db, email)
+        except Conflict as error:
+            print(error, file=sys.stderr)
+            return 1
     if user is None:
         print(f"No user with email {email}", file=sys.stderr)
         return 1

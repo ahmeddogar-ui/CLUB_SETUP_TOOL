@@ -128,3 +128,6 @@ export const USER_ROLE_LABELS: Record<UserRole, string> = {
   club_lead: "Club lead",
   admin: "Admin",
 };
+
+/** Every role, in the order the users page lists them. */
+export const USER_ROLES = Object.keys(USER_ROLE_LABELS) as UserRole[];

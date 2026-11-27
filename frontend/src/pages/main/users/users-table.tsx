@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/table";
 import { useAuth } from "@/contexts";
 import { apiFetch } from "@/lib/api";
-import { formatDateTime, USER_ROLE_LABELS } from "@/lib/labels";
+import { formatDateTime, USER_ROLE_LABELS, USER_ROLES } from "@/lib/labels";
 import type { User, UserListItem, UserRole } from "@/lib/types";
 import { cn } from "@/utils";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -21,8 +21,6 @@ const HEADER_CELL_CLASS =
 const CELL_CLASS =
   "px-6 py-4 text-start text-sm whitespace-nowrap text-gray-500 dark:text-gray-400";
 const WIDE_ONLY = "hidden md:table-cell";
-
-const ROLES = Object.keys(USER_ROLE_LABELS) as UserRole[];
 
 interface UsersTableProps {
   users: UserListItem[] | undefined;
@@ -124,7 +122,7 @@ function RoleSelect({ user }: { user: UserListItem }) {
       disabled={changeRole.isPending}
       onChange={(event) => changeRole.mutate(event.target.value as UserRole)}
     >
-      {ROLES.map((role) => (
+      {USER_ROLES.map((role) => (
         <option key={role} value={role}>
           {USER_ROLE_LABELS[role]}
         </option>

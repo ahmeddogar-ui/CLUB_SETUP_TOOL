@@ -9,9 +9,10 @@ import pytest
 from sqlalchemy.exc import IntegrityError
 
 from app.core.config import settings
+from app.exceptions import Conflict
 from app.models import User, UserRole
 from app.services.auth import make_admin
-from tests.conftest import auth
+from tests.conftest import auth, make_club
 
 
 def register(client, name="Ada", email="ada@example.com", password="hunter2-hunter2"):
@@ -210,3 +211,12 @@ def test_make_admin_with_unknown_email_returns_none_and_changes_nothing(db, lead
     assert make_admin(db, "nobody@example.com") is None
     db.expire_all()
     assert db.get(User, lead.id).role == UserRole.club_lead
+
+
+def test_make_admin_keeps_a_lead_who_owns_clubs_a_lead(db, lead):
+    make_club(db, lead)
+
+    with pytest.raises(Conflict, match="owns clubs"):
+        make_admin(db, lead.email)
+    db.refresh(lead)
+    assert lead.role == UserRole.club_lead

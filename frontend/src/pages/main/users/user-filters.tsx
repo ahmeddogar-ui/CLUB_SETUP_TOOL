@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { USER_ROLE_LABELS } from "@/lib/labels";
+import { USER_ROLE_LABELS, USER_ROLES } from "@/lib/labels";
 import type { UserRole } from "@/lib/types";
 import type { FormEvent } from "react";
 
@@ -10,13 +10,11 @@ interface UserFiltersProps {
   onChange: (filters: { role: UserRole | null; search: string }) => void;
 }
 
-const ROLES = Object.keys(USER_ROLE_LABELS) as UserRole[];
-
 /** Role tabs and a name or email search for the admin's list of users. */
 export function UserFilters({ role, search, onChange }: UserFiltersProps) {
   const tabs: { label: string; value: UserRole | null }[] = [
     { label: "All", value: null },
-    ...ROLES.map((value) => ({ label: USER_ROLE_LABELS[value], value })),
+    ...USER_ROLES.map((value) => ({ label: USER_ROLE_LABELS[value], value })),
   ];
 
   const submitSearch = (event: FormEvent<HTMLFormElement>) => {

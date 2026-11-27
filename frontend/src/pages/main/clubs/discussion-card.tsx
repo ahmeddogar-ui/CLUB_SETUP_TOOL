@@ -75,9 +75,14 @@ export function DiscussionCard({ clubId }: { clubId: string }) {
     defaultValues: { body: "" },
   });
 
-  const oldestFirst = (comments.data?.pages ?? [])
-    .flatMap((page) => page.items)
-    .toReversed();
+  // Pages are by offset, so a comment posted between two loads shifts the
+  // next page by one and repeats a comment: keep each id once.
+  const byId = new Map(
+    (comments.data?.pages ?? [])
+      .flatMap((page) => page.items)
+      .map((comment) => [comment.id, comment]),
+  );
+  const oldestFirst = [...byId.values()].toReversed();
 
   return (
     <Card className="rounded-2xl border border-gray-200 bg-white p-5 sm:p-6 dark:border-gray-800 dark:bg-white/3">

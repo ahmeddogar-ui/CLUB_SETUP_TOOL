@@ -53,9 +53,7 @@ describe("users page", () => {
     const queries = serveUsers();
     const { user } = renderApp("/users?page=2", { signedInAs: ADMIN });
 
-    await user.click(
-      await screen.findByRole("button", { name: "Admin" }),
-    );
+    await user.click(await screen.findByRole("button", { name: "Admin" }));
 
     await waitFor(() => expect(queries.at(-1)?.get("role")).toBe("admin"));
     expect(queries.at(-1)?.get("offset")).toBe("0");

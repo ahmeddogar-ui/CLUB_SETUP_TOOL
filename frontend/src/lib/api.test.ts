@@ -262,7 +262,11 @@ describe("apiDownload", () => {
     expect(clicked).toHaveLength(1);
     expect(clicked[0].download).toBe("clubs.csv");
     expect(clicked[0].href).toBe("blob:clubs");
-    expect(revokeObjectURL).toHaveBeenCalledWith("blob:clubs");
+    // Freed after the click has been handled, not during it.
+    expect(revokeObjectURL).not.toHaveBeenCalled();
+    await vi.waitFor(() =>
+      expect(revokeObjectURL).toHaveBeenCalledWith("blob:clubs"),
+    );
   });
 
   it("throws ApiError and saves nothing when the request fails", async () => {

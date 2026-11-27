@@ -33,7 +33,7 @@ def export_csv(client, user, params=()):
 def rows_of(response, ours):
     """Parsed rows for the clubs these tests created, in the order exported. An
     admin exports every club in the database, so ignore any others."""
-    rows = list(csv.DictReader(io.StringIO(response.text)))
+    rows = list(csv.DictReader(io.StringIO(response.content.decode("utf-8-sig"))))
     return [row for row in rows if int(row["id"]) in ours]
 
 
@@ -41,7 +41,7 @@ def test_header_row_is_exact(client, admin):
     response = export_csv(client, admin)
 
     assert response.status_code == 200
-    assert next(csv.reader(io.StringIO(response.text))) == EXPECTED_HEADER
+    assert next(csv.reader(io.StringIO(response.content.decode("utf-8-sig")))) == EXPECTED_HEADER
 
 
 def test_exports_club_fields(client, admin, lead):
@@ -122,3 +122,10 @@ def test_club_lead_is_forbidden(client, lead):
 
 def test_requires_auth(client):
     assert client.get("/api/clubs/export.csv").status_code == 401
+
+
+def test_starts_with_a_byte_order_mark_for_excel(client, admin):
+    """Without it Excel reads the UTF-8 file as Windows-1252 and garbles
+    names like "Société de débat"."""
+    response = client.get("/api/clubs/export.csv", headers=auth(admin))
+    assert response.content.startswith(b"\xef\xbb\xbf")

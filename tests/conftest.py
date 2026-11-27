@@ -49,7 +49,7 @@ os.environ["ENABLE_API_DOCS"] = "false"
 
 from alembic.config import Config  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
-from sqlalchemy import create_engine  # noqa: E402
+from sqlalchemy import create_engine, text  # noqa: E402
 from sqlalchemy.orm import Session  # noqa: E402
 
 from alembic import command  # noqa: E402
@@ -94,6 +94,23 @@ def db(engine):
     session.close()
     transaction.rollback()
     connection.close()
+
+
+@pytest.fixture
+def committed_db(engine):
+    """A session whose commits are real. The test database is disposable, so
+    afterwards every table is emptied. TRUNCATE doesn't fire the append-only
+    trigger on events, which only guards row-level UPDATE and DELETE."""
+    with Session(engine) as session:
+        yield session
+    # Must list every table, or rows from this test leak into the next run.
+    with engine.begin() as connection:
+        connection.execute(
+            text(
+                "TRUNCATE users, clubs, requirements, events, refresh_tokens "
+                "RESTART IDENTITY CASCADE"
+            )
+        )
 
 
 @pytest.fixture

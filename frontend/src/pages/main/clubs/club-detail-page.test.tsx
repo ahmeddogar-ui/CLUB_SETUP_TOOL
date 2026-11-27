@@ -549,6 +549,37 @@ describe("club discussion", () => {
     expect(offsets).toEqual(["0", "1"]);
   });
 
+  it("shows a comment once when a new one shifts the pages", async () => {
+    const club = buildClub();
+    serveClub(club);
+    server.use(
+      http.get(`/api${CLUB_URL}/comments`, ({ request }) => {
+        const offset = new URL(request.url).searchParams.get("offset");
+        // Someone posted in between: the second page repeats comment 2.
+        const items =
+          offset === "0"
+            ? [
+                buildComment({ id: 3, body: "Third" }),
+                buildComment({ id: 2, body: "Second" }),
+              ]
+            : [
+                buildComment({ id: 2, body: "Second" }),
+                buildComment({ id: 1, body: "First" }),
+              ];
+        return HttpResponse.json({ items, total: 4 });
+      }),
+    );
+    const { user } = await openClub(club);
+    await screen.findByText("Third");
+
+    await user.click(
+      screen.getByRole("button", { name: "Show older comments" }),
+    );
+
+    expect(await screen.findByText("First")).toBeInTheDocument();
+    expect(screen.getAllByText("Second")).toHaveLength(1);
+  });
+
   it("explains an empty comment instead of posting it", async () => {
     const club = buildClub();
     serveClub(club);

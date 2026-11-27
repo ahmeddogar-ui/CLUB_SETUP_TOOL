@@ -1,7 +1,7 @@
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
-from app.exceptions import Conflict, NotFound
+from app.exceptions import Conflict, Forbidden, NotFound
 from app.listing import Page, contains, paginate
 from app.models import Clubs, Event, EventType, User, UserRole
 
@@ -26,28 +26,40 @@ def list_users(
     return paginate(query.order_by(func.lower(User.name), User.id), limit, offset)
 
 
-def change_role(db: Session, admin: User, user_id: int, role: UserRole) -> User:
-    """Locks the user, so two admins changing one user's role queue up."""
-    user = (
-        db.query(User)
-        .filter(User.id == user_id)
-        .with_for_update()
-        .populate_existing()
-        .first()
-    )
-    if user is None:
-        raise NotFound("User not found")
-    # Keeps at least one admin: the last admin can't demote themselves.
-    if user.id == admin.id:
-        raise Conflict("You cannot change your own role")
-    if user.role == role:
-        return user
+def ensure_role_change_allowed(db: Session, user: User, role: UserRole) -> None:
+    """A lead's clubs can only ever be submitted by a club lead, so a lead who
+    owns clubs keeps the role. Shared with the make-admin command."""
     owns_clubs = db.query(Clubs.id).filter(Clubs.submitter_id == user.id).first()
-    if user.role == UserRole.club_lead and owns_clubs:
+    if user.role == UserRole.club_lead and role != user.role and owns_clubs:
         raise Conflict(
             f"{user.name} owns clubs, which only a club lead can submit, "
             "so they stay a club lead"
         )
+
+
+def change_role(db: Session, admin: User, user_id: int, role: UserRole) -> User:
+    """Locks the acting admin and the user, in id order so two admins acting on
+    each other can't deadlock, then re-checks the actor: if two admins demote
+    each other at once, the second finds they are no longer an admin. With
+    "you can't change your own role", that keeps at least one admin."""
+    locked = {
+        locked_user.id: locked_user
+        for locked_user in db.query(User)
+        .filter(User.id.in_({admin.id, user_id}))
+        .order_by(User.id)
+        .with_for_update()
+        .populate_existing()
+    }
+    user = locked.get(user_id)
+    if user is None:
+        raise NotFound("User not found")
+    if locked[admin.id].role != UserRole.admin:
+        raise Forbidden("You are no longer an admin")
+    if user.id == admin.id:
+        raise Conflict("You cannot change your own role")
+    if user.role == role:
+        return user
+    ensure_role_change_allowed(db, user, role)
 
     db.add(
         Event(

@@ -39,6 +39,7 @@ from app.services.clubs import (
 
 router = APIRouter(prefix="/clubs", tags=["clubs"])
 
+UTF8_BOM = "\ufeff"
 EXPORT_HEADER = (
     "id",
     "name",
@@ -117,6 +118,8 @@ def export_clubs_csv(
         db, current_user, statuses=status_filter, sort=sort, order=order, search=q
     )
     buffer = io.StringIO()
+    # A byte-order mark tells Excel the file is UTF-8.
+    buffer.write(UTF8_BOM)
     writer = csv.writer(buffer)
     writer.writerow(EXPORT_HEADER)
     for summary in summaries:
