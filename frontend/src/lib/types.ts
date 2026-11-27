@@ -1,3 +1,5 @@
+import type { RequestEventType } from "./request-types";
+
 export type UserRole = "admin" | "club_lead" | "finance_approver";
 
 export interface User {
@@ -74,7 +76,8 @@ export type EventType =
   | "requirement_approved"
   | "requirement_rejected"
   | "comment_posted"
-  | "role_changed";
+  | "role_changed"
+  | RequestEventType;
 
 export interface ClubEvent {
   id: number;
@@ -116,6 +119,8 @@ export interface ActivityEntry {
   club_name: string | null;
   subject_user_id: number | null;
   subject_user_name: string | null;
+  request_id: number | null;
+  request_title: string | null;
   requirement_type: RequirementType | null;
   from_status: ClubStatus | null;
   to_status: ClubStatus | null;

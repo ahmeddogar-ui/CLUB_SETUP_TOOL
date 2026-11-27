@@ -161,6 +161,8 @@ export function buildActivityEntry(
     club_name: "Chess Club",
     subject_user_id: null,
     subject_user_name: null,
+    request_id: null,
+    request_title: null,
     requirement_type: null,
     from_status: null,
     to_status: "drafting",

@@ -21,6 +21,33 @@ function serveActivity(
 }
 
 describe("activity page", () => {
+  it("names a request event's action and links to the request", async () => {
+    serveActivity([
+      buildActivityEntry({
+        id: 7,
+        event_type: "request_approved",
+        request_id: 42,
+        request_title: "Hackathon prizes",
+      }),
+    ]);
+    renderApp("/activity", { signedInAs: ADMIN });
+
+    const link = await screen.findByRole("link", { name: "Hackathon prizes" });
+    expect(link).toHaveAttribute("href", "/requests/42");
+    expect(
+      within(link.closest("td")!).getByText(/Request approved/),
+    ).toBeVisible();
+  });
+
+  it("offers request actions in the action filter", async () => {
+    serveActivity();
+    renderApp("/activity", { signedInAs: ADMIN });
+
+    expect(
+      await screen.findByRole("option", { name: "Request approved" }),
+    ).toBeInTheDocument();
+  });
+
   it("lists entries with readable actions, clubs and notes", async () => {
     serveActivity([
       buildActivityEntry({

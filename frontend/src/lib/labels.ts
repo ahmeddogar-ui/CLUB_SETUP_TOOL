@@ -6,6 +6,8 @@ import type {
   UserRole,
 } from "./types";
 
+import { REQUEST_EVENT_LABELS } from "./request-labels";
+
 type BadgeColor = "primary" | "success" | "error" | "warning" | "info" | "gray";
 
 export const CLUB_STATUS_BADGES: Record<
@@ -54,6 +56,7 @@ export const REQUIREMENT_LABELS: Record<RequirementType, string> = {
 };
 
 export const EVENT_LABELS: Record<EventType, string> = {
+  ...REQUEST_EVENT_LABELS,
   created: "Club created",
   submitted: "Submitted for review",
   review_started: "Review started",

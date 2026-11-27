@@ -1,3 +1,4 @@
+import { Link } from "react-router";
 import { EmptyList, ListError } from "@/components/shared/list-states";
 import { TableSkeleton } from "@/components/shared/table-skeleton";
 import {
@@ -93,7 +94,17 @@ export function ActivityTable({
                   {entry.actor_name}
                 </button>
               </TableCell>
-              <TableCell className={CELL_CLASS}>{actionLabel(entry)}</TableCell>
+              <TableCell className={CELL_CLASS}>
+                {actionLabel(entry)}
+                {entry.request_id !== null && (
+                  <Link
+                    to={`/requests/${entry.request_id}`}
+                    className="mt-0.5 block text-brand-500 hover:text-brand-600 dark:text-brand-400"
+                  >
+                    {entry.request_title}
+                  </Link>
+                )}
+              </TableCell>
               <TableCell className={CELL_CLASS}>
                 <SubjectCell entry={entry} onFilterClub={onFilterClub} />
               </TableCell>
