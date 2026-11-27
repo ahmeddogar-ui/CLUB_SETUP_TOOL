@@ -10,8 +10,10 @@ import { apiFetch } from "@/lib/api";
 import { EDITABLE_STATUSES } from "@/lib/labels";
 import type { Club, ClubEvent, Requirement } from "@/lib/types";
 import { useQuery } from "@tanstack/react-query";
-import { useParams } from "react-router";
+import { useParams, useSearchParams } from "react-router";
+import { ClubRequestsCard } from "../requests/club-requests-card";
 import { ClubActions } from "./club-actions";
+import { type ClubTab, ClubTabPanel, ClubTabs } from "./club-tabs";
 import { DiscussionCard } from "./discussion-card";
 import { EditClubDialog } from "./edit-club-dialog";
 import { HistoryCard } from "./history-card";
@@ -21,6 +23,9 @@ import { ClubStatusBadge } from "./status-badge";
 export default function ClubDetailPage() {
   const { clubId } = useParams();
   const { user } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tab: ClubTab =
+    searchParams.get("tab") === "requests" ? "requests" : "overview";
 
   const club = useQuery({
     queryKey: ["clubs", clubId],
@@ -59,35 +64,51 @@ export default function ClubDetailPage() {
       <PageMeta title={club.data.name} description={club.data.description} />
       <PageBreadcrumb pageTitle={club.data.name} />
 
-      <div className="space-y-6">
-        <Card className="rounded-2xl border border-gray-200 bg-white p-5 sm:p-6 dark:border-gray-800 dark:bg-white/3">
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div className="space-y-2">
-              <ClubStatusBadge status={club.data.status} />
-              <p className="text-sm whitespace-pre-line text-gray-700 dark:text-gray-400">
-                {club.data.description}
-              </p>
-            </div>
-            {isEditable && <EditClubDialog club={club.data} />}
+      <ClubTabs
+        selected={tab}
+        onSelect={(nextTab) =>
+          setSearchParams(nextTab === "overview" ? {} : { tab: nextTab })
+        }
+      />
+
+      <ClubTabPanel tab={tab}>
+        {tab === "requests" ? (
+          <ClubRequestsCard club={club.data} />
+        ) : (
+          <div className="space-y-6">
+            <Card className="rounded-2xl border border-gray-200 bg-white p-5 sm:p-6 dark:border-gray-800 dark:bg-white/3">
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <div className="space-y-2">
+                  <ClubStatusBadge status={club.data.status} />
+                  <p className="text-sm whitespace-pre-line text-gray-700 dark:text-gray-400">
+                    {club.data.description}
+                  </p>
+                </div>
+                {isEditable && <EditClubDialog club={club.data} />}
+              </div>
+
+              <ClubActions
+                club={club.data}
+                canSubmit={isEditable}
+                isAdmin={isAdmin}
+              />
+            </Card>
+
+            <RequirementsCard
+              requirements={requirements.data}
+              canEditLinks={isEditable}
+              canReview={isAdmin && club.data.status === "under_review"}
+            />
+
+            <DiscussionCard clubId={club.data.id.toString()} />
+
+            <HistoryCard
+              events={events.data}
+              requirements={requirements.data}
+            />
           </div>
-
-          <ClubActions
-            club={club.data}
-            canSubmit={isEditable}
-            isAdmin={isAdmin}
-          />
-        </Card>
-
-        <RequirementsCard
-          requirements={requirements.data}
-          canEditLinks={isEditable}
-          canReview={isAdmin && club.data.status === "under_review"}
-        />
-
-        <DiscussionCard clubId={club.data.id.toString()} />
-
-        <HistoryCard events={events.data} requirements={requirements.data} />
-      </div>
+        )}
+      </ClubTabPanel>
     </div>
   );
 }

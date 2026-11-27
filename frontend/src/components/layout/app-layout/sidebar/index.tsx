@@ -17,40 +17,51 @@ import {
   TaskIcon,
   UserIcon,
 } from "@/icons";
+import type { UserRole } from "@/lib/types";
 import { cn } from "@/utils";
+import type { ReactNode } from "react";
 import { Link, useLocation } from "react-router";
 
-const NAV_ITEMS = [
+const NAV_ITEMS: {
+  label: string;
+  path: string;
+  icon: ReactNode;
+  roles: UserRole[];
+}[] = [
   {
     label: "Clubs",
     path: "/",
     icon: <LayoutGridIcon className="size-6" />,
-    isAdminOnly: false,
+    roles: ["admin", "club_lead"],
   },
   {
     label: "Review queue",
     path: "/review",
     icon: <TaskIcon className="size-6" />,
-    isAdminOnly: true,
+    roles: ["admin", "finance_approver"],
   },
   {
     label: "Users",
     path: "/users",
     icon: <UserIcon className="size-6" />,
-    isAdminOnly: true,
+    roles: ["admin"],
   },
   {
     label: "Activity",
     path: "/activity",
     icon: <ClockIcon className="size-6" />,
-    isAdminOnly: true,
+    roles: ["admin"],
   },
 ];
 
-/** Club pages (/clubs/new, /clubs/3) belong to the Clubs section. */
+/** Club and request pages (/clubs/3, /requests/7) belong to Clubs. */
 function isCurrentSection(itemPath: string, pathname: string): boolean {
   if (itemPath === "/")
-    return pathname === "/" || pathname.startsWith("/clubs/");
+    return (
+      pathname === "/" ||
+      pathname.startsWith("/clubs/") ||
+      pathname.startsWith("/requests/")
+    );
   return pathname.startsWith(itemPath);
 }
 
@@ -58,11 +69,12 @@ export default function AppSidebar() {
   const { open, isMobile, isHovered } = useSidebar();
   const { pathname } = useLocation();
   const { user } = useAuth();
-  const isAdmin = user?.role === "admin";
 
   // A collapsed sidebar shows icons only, until hovered.
   const showLabels = open || isHovered || isMobile;
-  const visibleItems = NAV_ITEMS.filter((item) => !item.isAdminOnly || isAdmin);
+  const visibleItems = NAV_ITEMS.filter(
+    (item) => user && item.roles.includes(user.role),
+  );
 
   return (
     <Sidebar side="left" collapsible="icon">

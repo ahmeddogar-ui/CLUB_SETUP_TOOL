@@ -50,8 +50,8 @@ export function clubPageQuery(filters: ClubListFilters) {
 }
 
 /** The 1-based page number from the URL; anything invalid is page 1. */
-export function readPage(searchParams: URLSearchParams): number {
-  const page = Number(searchParams.get("page"));
+export function readPage(searchParams: URLSearchParams, key = "page"): number {
+  const page = Number(searchParams.get(key));
   return Number.isInteger(page) && page > 1 ? page : 1;
 }
 

@@ -4,6 +4,7 @@ import {
   buildClubListItem,
   buildClubPage,
   buildEvent,
+  buildRequestPage,
   buildRequirements,
   daysAgo,
   LEAD,
@@ -13,6 +14,13 @@ import { server } from "@/test/server";
 import { screen, waitFor, within } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { describe, expect, it, vi } from "vitest";
+
+/** The review queue also asks for the requests awaiting the admin. */
+function serveNoAwaitingRequests() {
+  server.use(
+    http.get("/api/requests", () => HttpResponse.json(buildRequestPage([]))),
+  );
+}
 
 describe("club list", () => {
   it("lists the lead's clubs with status, document progress and last update", async () => {
@@ -134,6 +142,7 @@ describe("list loading states", () => {
     server.use(
       http.get("/api/clubs", () => HttpResponse.json(buildClubPage([]))),
     );
+    serveNoAwaitingRequests();
     renderApp("/review", { signedInAs: ADMIN });
 
     await waitFor(() =>
@@ -406,6 +415,7 @@ describe("review queue", () => {
         );
       }),
     );
+    serveNoAwaitingRequests();
     renderApp("/review", { signedInAs: ADMIN });
 
     expect(
@@ -428,6 +438,7 @@ describe("review queue", () => {
         return HttpResponse.json(buildClubPage(items, { total: 5 }));
       }),
     );
+    serveNoAwaitingRequests();
     const { user } = renderApp("/review?page=2", { signedInAs: ADMIN });
 
     expect(
@@ -447,6 +458,7 @@ describe("review queue", () => {
     server.use(
       http.get("/api/clubs", () => HttpResponse.json(buildClubPage([]))),
     );
+    serveNoAwaitingRequests();
     renderApp("/review", { signedInAs: ADMIN });
 
     expect(

@@ -127,6 +127,7 @@ export function formatWaiting(isoTimestamp: string): string {
 export const USER_ROLE_LABELS: Record<UserRole, string> = {
   club_lead: "Club lead",
   admin: "Admin",
+  finance_approver: "Finance approver",
 };
 
 /** Every role, in the order the users page lists them. */

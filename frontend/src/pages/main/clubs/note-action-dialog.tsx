@@ -13,6 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { NOTE_MAX_LENGTH } from "@/lib/limits";
 import { OctagonAlertIcon } from "@/icons";
 import { apiFetch } from "@/lib/api";
+import type { QueryKey } from "@tanstack/react-query";
 import { useState } from "react";
 import { useClubMutation } from "./use-club-mutation";
 
@@ -28,6 +29,8 @@ interface NoteActionDialogProps {
   description: string;
   triggerLabel: string;
   successMessage: string;
+  /** The queries to refetch afterwards; the club queries when omitted. */
+  queryKey?: QueryKey;
   isNoteRequired: boolean;
   confirmation?: Confirmation;
   variant?: "default" | "outline" | "destructive";
@@ -40,6 +43,7 @@ export function NoteActionDialog({
   description,
   triggerLabel,
   successMessage,
+  queryKey,
   isNoteRequired,
   confirmation,
   variant = "default",
@@ -56,6 +60,7 @@ export function NoteActionDialog({
         body: JSON.stringify({ note: trimmedNote || null }),
       }),
     successMessage,
+    queryKey,
   );
 
   const trimmedNote = note.trim();

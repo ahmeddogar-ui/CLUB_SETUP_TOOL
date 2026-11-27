@@ -1,4 +1,10 @@
-import { ADMIN, LEAD, buildClubPage, buildUserListItem } from "@/test/builders";
+import {
+  ADMIN,
+  FINANCE,
+  LEAD,
+  buildClubPage,
+  buildUserListItem,
+} from "@/test/builders";
 import { renderApp } from "@/test/render-app";
 import { server } from "@/test/server";
 import { screen, waitFor } from "@testing-library/react";
@@ -133,5 +139,21 @@ describe("users page", () => {
     renderApp("/users", { signedInAs: LEAD });
 
     expect(await screen.findByText("No clubs yet")).toBeInTheDocument();
+  });
+
+  it("sends a finance approver to the review queue, not the users page", async () => {
+    server.use(
+      http.get("/api/requests", () =>
+        HttpResponse.json({ items: [], total: 0 }),
+      ),
+    );
+    renderApp("/users", { signedInAs: FINANCE });
+
+    expect(
+      await screen.findByRole("heading", { name: "Review queue" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("searchbox", { name: /search users/i }),
+    ).not.toBeInTheDocument();
   });
 });
