@@ -40,6 +40,8 @@ def _activity_out(entry: ActivityEntry) -> ActivityOut:
         club_name=entry.club_name,
         subject_user_id=event.subject_user_id,
         subject_user_name=entry.subject_user_name,
+        request_id=event.request_id,
+        request_title=entry.request_title,
         requirement_type=entry.requirement_type,
         from_status=event.from_status,
         to_status=event.to_status,

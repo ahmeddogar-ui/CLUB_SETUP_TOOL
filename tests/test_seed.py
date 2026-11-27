@@ -1,9 +1,19 @@
 import pytest
 
 from app.exceptions import Conflict
-from app.models import Clubs, ClubStatus, Event, User, UserRole
+from app.models import (
+    Clubs,
+    ClubStatus,
+    Event,
+    Request,
+    RequestStatus,
+    RequestType,
+    User,
+    UserRole,
+)
 from app.seed import (
     DEMO_ADMIN_EMAIL,
+    DEMO_FINANCE_EMAIL,
     DEMO_LEAD_EMAIL,
     DEMO_LEADS,
     demo_data_exists,
@@ -77,3 +87,36 @@ def test_demo_data_exists_only_after_seeding(db):
     assert demo_data_exists(db) is False
     seed_demo(db)
     assert demo_data_exists(db) is True
+
+
+def test_seed_adds_a_demo_finance_approver_through_the_users_page_rule(db):
+    seed_demo(db)
+    finance = user_by_email(db, DEMO_FINANCE_EMAIL)
+    assert finance.role == UserRole.finance_approver
+    promotion = (
+        db.query(Event)
+        .filter(Event.subject_user_id == finance.id, Event.event_type == "role_changed")
+        .one()
+    )
+    assert promotion.note == "Club lead → Finance approver"
+
+
+def test_seed_puts_requests_of_both_types_in_every_status(db):
+    seed_demo(db)
+    rows = (
+        db.query(Request.request_type, Request.status)
+        .join(Clubs, Clubs.id == Request.club_id)
+        .join(User, User.id == Clubs.submitter_id)
+        .filter(User.email.in_([email for _, email in DEMO_LEADS]))
+        .all()
+    )
+    for request_type in RequestType:
+        assert {status for kind, status in rows if kind == request_type} == set(
+            RequestStatus
+        )
+
+
+def test_seed_starts_conversations(db):
+    seed_demo(db)
+    comments = db.query(Event).filter(Event.event_type == "comment_posted").count()
+    assert comments >= 4

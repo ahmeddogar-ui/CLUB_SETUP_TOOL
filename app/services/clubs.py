@@ -311,13 +311,14 @@ def review_club(
 
 def list_club_events(db: Session, club_id: int) -> list[tuple[Event, str]]:
     """The club's registration history, newest first, with the actor's name;
-    served by idx_events_club_time. Comments have their own thread."""
+    served by idx_events_club_time. Comments and requests have their own."""
     return (
         db.query(Event, User.name)
         .join(User, User.id == Event.actor_id)
         .filter(
             Event.club_id == club_id,
             Event.event_type != EventType.comment_posted,
+            Event.request_id.is_(None),
         )
         .order_by(Event.created_at.desc(), Event.id.desc())
         .tuples()

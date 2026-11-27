@@ -6,7 +6,15 @@ from datetime import datetime
 from sqlalchemy.orm import Session, aliased
 
 from app.listing import Page, paginate
-from app.models import Clubs, Event, EventType, Requirement, RequirementType, User
+from app.models import (
+    Clubs,
+    Event,
+    EventType,
+    Request,
+    Requirement,
+    RequirementType,
+    User,
+)
 
 
 @dataclass(frozen=True)
@@ -25,6 +33,7 @@ class ActivityEntry:
     actor_name: str
     club_name: str | None
     subject_user_name: str | None
+    request_title: str | None
     requirement_type: RequirementType | None
 
 
@@ -36,11 +45,17 @@ def list_activity(
     subject = aliased(User)
     query = (
         db.query(
-            Event, actor.name, Clubs.name, subject.name, Requirement.requirement_type
+            Event,
+            actor.name,
+            Clubs.name,
+            subject.name,
+            Request.title,
+            Requirement.requirement_type,
         )
         .join(actor, actor.id == Event.actor_id)
         .outerjoin(Clubs, Clubs.id == Event.club_id)
         .outerjoin(subject, subject.id == Event.subject_user_id)
+        .outerjoin(Request, Request.id == Event.request_id)
         .outerjoin(Requirement, Requirement.id == Event.requirement_id)
     )
     if filters.actor_id is not None:

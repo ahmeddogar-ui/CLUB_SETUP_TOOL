@@ -13,6 +13,7 @@ from app.routers.activity import router as activity_router
 from app.routers.auth import router as auth_router
 from app.routers.clubs import router as clubs_router
 from app.routers.comments import router as comments_router
+from app.routers.requests import router as requests_router
 from app.routers.requirements import router as requirements_router
 from app.routers.users import router as users_router
 
@@ -81,6 +82,7 @@ api.include_router(requirements_router)
 api.include_router(comments_router)
 api.include_router(users_router)
 api.include_router(activity_router)
+api.include_router(requests_router)
 app.include_router(api)
 
 # Checked only after every route above: built files as they are, index.html for

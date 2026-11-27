@@ -111,3 +111,18 @@ def test_events_stay_append_only_after_the_rename(db, admin, lead):
     club = make_club(db, lead)
     with pytest.raises(Exception, match="append-only"):
         db.execute(text("DELETE FROM events WHERE club_id = :id"), {"id": club.id})
+
+
+def test_request_events_name_their_request(client, db, admin, lead):
+    from tests.request_helpers import create_request, funding_body
+
+    club = make_club(db, lead, status=ClubStatus.approved)
+    request = create_request(client, lead, club.id, funding_body(title="Spring social"))
+
+    [item] = activity(client, admin, event_type="request_created", club_id=club.id)[
+        "items"
+    ]
+
+    assert item["request_id"] == request["id"]
+    assert item["request_title"] == "Spring social"
+    assert item["club_name"] == club.name

@@ -103,11 +103,13 @@ def committed_db(engine):
     trigger on events, which only guards row-level UPDATE and DELETE."""
     with Session(engine) as session:
         yield session
-    # Must list every table, or rows from this test leak into the next run.
+    # Must list every table but rooms (reference data from a migration), or
+    # rows from this test leak into the next run.
     with engine.begin() as connection:
         connection.execute(
             text(
-                "TRUNCATE users, clubs, requirements, events, refresh_tokens "
+                "TRUNCATE users, clubs, requirements, events, refresh_tokens, "
+                "requests, funding_line_items, request_approvals "
                 "RESTART IDENTITY CASCADE"
             )
         )

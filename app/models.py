@@ -11,6 +11,7 @@ from sqlalchemy import (
     text,
 )
 from sqlalchemy import Enum as SAEnum
+from sqlalchemy.dialects.postgresql import TSTZRANGE, ExcludeConstraint, Range
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 convention = {
@@ -29,6 +30,7 @@ class Base(DeclarativeBase):
 class UserRole(str, Enum):
     admin = "admin"
     club_lead = "club_lead"
+    finance_approver = "finance_approver"
 
 
 class ClubStatus(str, Enum):
@@ -82,6 +84,45 @@ class EventType(str, Enum):
     comment_posted = "comment_posted"
     # A user's role; the user is subject_user_id, the change is the note.
     role_changed = "role_changed"
+    # A club's request (request_id); one per request action.
+    request_created = "request_created"
+    request_submitted = "request_submitted"
+    request_review_started = "request_review_started"
+    request_step_approved = "request_step_approved"
+    request_approved = "request_approved"
+    request_rejected = "request_rejected"
+    request_changes_requested = "request_changes_requested"
+    request_cancelled = "request_cancelled"
+
+
+class RequestType(str, Enum):
+    funding = "funding"
+    room_booking = "room_booking"
+
+
+class RequestStatus(str, Enum):
+    draft = "draft"
+    submitted = "submitted"
+    in_review = "in_review"
+    changes_requested = "changes_requested"
+    approved = "approved"
+    rejected = "rejected"
+    cancelled = "cancelled"
+
+
+# Waiting on an approver: awaiting_role is set exactly while in these.
+AWAITING_APPROVAL_STATUSES = (RequestStatus.submitted, RequestStatus.in_review)
+# A booking in these holds its room; draft, rejected and cancelled don't.
+SLOT_HOLDING_STATUSES = (
+    RequestStatus.submitted,
+    RequestStatus.in_review,
+    RequestStatus.changes_requested,
+    RequestStatus.approved,
+)
+
+
+def _status_list(statuses: tuple[RequestStatus, ...]) -> str:
+    return ", ".join(f"'{status.value}'" for status in statuses)
 
 
 # A document counts as provided once a link is in and hasn't been rejected.
@@ -166,6 +207,8 @@ class Event(Base):
         Index("idx_events_time", text("created_at DESC"), text("id DESC")),
         Index("idx_events_actor_time", "actor_id", text("created_at DESC")),
         Index("idx_events_type_time", "event_type", text("created_at DESC")),
+        # A request's history.
+        Index("idx_events_request_time", "request_id", text("created_at DESC")),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -174,6 +217,8 @@ class Event(Base):
     club_id: Mapped[int | None] = mapped_column(
         ForeignKey("clubs.id", ondelete="RESTRICT")
     )
+    # The request an event is about (request_* events, which also name its club).
+    request_id: Mapped[int | None] = mapped_column(ForeignKey("requests.id"))
     # The user an event is about when it isn't about a club (role_changed).
     subject_user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"))
     actor_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
@@ -192,6 +237,112 @@ class Event(Base):
     # Stored per event so each review round keeps its own note.
     note: Mapped[str | None]
     created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=text("now()")
+    )
+
+
+class Room(Base):
+    """A bookable room. Reference data, seeded by the migration that adds it."""
+
+    __tablename__ = "rooms"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(unique=True)
+    building: Mapped[str]
+    capacity: Mapped[int]
+
+
+class Request(Base):
+    """Something an approved club asks for. Every type shares this row, its
+    state machine and its approval chain (app/request_types.py); a type's own
+    data lives in its columns (room booking) or child rows (funding)."""
+
+    __tablename__ = "requests"
+    __table_args__ = (
+        # Booking columns are filled exactly for room bookings.
+        CheckConstraint(
+            "(request_type = 'room_booking') = "
+            "(room_id IS NOT NULL AND booked_during IS NOT NULL)",
+            name="booking_fields_match_type",
+        ),
+        # Set exactly while the request waits for an approver.
+        CheckConstraint(
+            f"(awaiting_role IS NOT NULL) = "
+            f"(status IN ({_status_list(AWAITING_APPROVAL_STATUSES)}))",
+            name="awaiting_role_matches_status",
+        ),
+        CheckConstraint("NOT isempty(booked_during)", name="booking_not_empty"),
+        # No double booking: two bookings that hold a slot can't overlap in
+        # one room. Ranges are [start, end), so back-to-back bookings fit.
+        ExcludeConstraint(
+            ("room_id", "="),
+            ("booked_during", "&&"),
+            name="no_double_booking",
+            using="gist",
+            where=text(f"status IN ({_status_list(SLOT_HOLDING_STATUSES)})"),
+        ),
+        # A club's Requests tab, newest first.
+        Index("idx_requests_club_updated", "club_id", "updated_at"),
+        # The review queue: what waits for a role, oldest first.
+        Index("idx_requests_awaiting_updated", "awaiting_role", "updated_at"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    club_id: Mapped[int] = mapped_column(ForeignKey("clubs.id", ondelete="RESTRICT"))
+    request_type: Mapped[RequestType] = mapped_column(
+        SAEnum(RequestType, name="request_type_kind")
+    )
+    title: Mapped[str]
+    status: Mapped[RequestStatus] = mapped_column(SAEnum(RequestStatus))
+    # Each submit starts a new round of approvals; 0 until the first submit.
+    round: Mapped[int] = mapped_column(server_default=text("0"))
+    # The role whose approval the request waits for; derived from the type's
+    # steps and this round's approvals, stored so the queue is one indexed query.
+    awaiting_role: Mapped[UserRole | None] = mapped_column(SAEnum(UserRole))
+    created_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    room_id: Mapped[int | None] = mapped_column(ForeignKey("rooms.id"))
+    booked_during: Mapped[Range[datetime] | None] = mapped_column(TSTZRANGE)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=text("now()")
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=text("now()"), onupdate=text("now()")
+    )
+
+
+class FundingLineItem(Base):
+    __tablename__ = "funding_line_items"
+    __table_args__ = (
+        CheckConstraint("amount_cents > 0", name="amount_positive"),
+        UniqueConstraint("request_id", "position"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    request_id: Mapped[int] = mapped_column(
+        ForeignKey("requests.id", ondelete="CASCADE")
+    )
+    position: Mapped[int]
+    description: Mapped[str]
+    # Whole cents: exact arithmetic, no floating point.
+    amount_cents: Mapped[int]
+
+
+class RequestApproval(Base):
+    """One approver's sign-off on one step of one round. The unique constraint
+    makes a second approval of the same step impossible."""
+
+    __tablename__ = "request_approvals"
+    __table_args__ = (UniqueConstraint("request_id", "round", "step"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    request_id: Mapped[int] = mapped_column(
+        ForeignKey("requests.id", ondelete="CASCADE")
+    )
+    round: Mapped[int]
+    step: Mapped[int]
+    approver_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    note: Mapped[str | None]
+    approved_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=text("now()")
     )
 

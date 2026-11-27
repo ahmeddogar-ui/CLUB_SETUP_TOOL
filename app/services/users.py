@@ -6,9 +6,10 @@ from app.listing import Page, contains, paginate
 from app.models import Clubs, Event, EventType, User, UserRole
 
 # How a role reads in the history ("Club lead → Admin").
-ROLE_LABELS = {
+ROLE_LABELS: dict[UserRole, str] = {
     UserRole.admin: "Admin",
     UserRole.club_lead: "Club lead",
+    UserRole.finance_approver: "Finance approver",
 }
 
 

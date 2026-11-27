@@ -41,7 +41,10 @@ def test_header_row_is_exact(client, admin):
     response = export_csv(client, admin)
 
     assert response.status_code == 200
-    assert next(csv.reader(io.StringIO(response.content.decode("utf-8-sig")))) == EXPECTED_HEADER
+    assert (
+        next(csv.reader(io.StringIO(response.content.decode("utf-8-sig"))))
+        == EXPECTED_HEADER
+    )
 
 
 def test_exports_club_fields(client, admin, lead):

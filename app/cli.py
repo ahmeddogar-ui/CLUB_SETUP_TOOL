@@ -11,6 +11,7 @@ from app.database import SessionLocal
 from app.exceptions import Conflict
 from app.seed import (
     DEMO_ADMIN_EMAIL,
+    DEMO_FINANCE_EMAIL,
     DEMO_LEAD_EMAIL,
     DEMO_PASSWORD,
     demo_data_exists,
@@ -57,6 +58,7 @@ def _seed_demo() -> int:
             return 1
         seed_demo(db)
     print(f"Admin:     {DEMO_ADMIN_EMAIL} / {DEMO_PASSWORD}")
+    print(f"Finance:   {DEMO_FINANCE_EMAIL} / {DEMO_PASSWORD}")
     print(f"Club lead: {DEMO_LEAD_EMAIL} / {DEMO_PASSWORD}")
     return 0
 
