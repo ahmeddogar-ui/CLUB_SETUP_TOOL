@@ -34,18 +34,107 @@ recorded in one permanent history that admins can search.
   on a phone.
 
 ## Screenshots
+From the demo data (`seed-demo`), in the order a visitor, an admin, a finance
+approver and a club lead meet them.
 
-<!-- Add the images to docs/screenshots/ and uncomment.
-![Landing page](docs/screenshots/landing.png)
-![All clubs (admin)](docs/screenshots/clubs-admin.png)
-![Club detail with discussion](docs/screenshots/club-detail.png)
-![Club requests tab](docs/screenshots/club-requests.png)
-![New funding request](docs/screenshots/new-funding-request.png)
-![Request detail with approval steps](docs/screenshots/request-detail.png)
-![Review queue](docs/screenshots/review-queue.png)
-![Activity log](docs/screenshots/activity.png)
-![Users](docs/screenshots/users.png)
--->
+### Visitor
+
+**Landing**
+
+![Landing](docs/screenshots/01-visitor-landing.png)
+
+**Sign in**
+
+![Sign in](docs/screenshots/02-visitor-sign-in.png)
+
+**Sign up**
+
+![Sign up](docs/screenshots/03-visitor-sign-up.png)
+
+### Admin
+
+**All clubs**
+
+![All clubs](docs/screenshots/04-admin-all-clubs.png)
+
+**All clubs sorted by name**
+
+![All clubs sorted by name](docs/screenshots/05-admin-all-clubs-sorted-by-name.png)
+
+**Club detail under review with discussion**
+
+![Club detail under review with discussion](docs/screenshots/06-admin-club-detail-under-review-with-discussion.png)
+
+**Reject confirmation step**
+
+![Reject confirmation step](docs/screenshots/07-admin-reject-confirmation-step.png)
+
+**Club requests tab**
+
+![Club requests tab](docs/screenshots/08-admin-club-requests-tab.png)
+
+**Review queue**
+
+![Review queue](docs/screenshots/09-admin-review-queue.png)
+
+**Booking request in review**
+
+![Booking request in review](docs/screenshots/10-admin-booking-request-in-review.png)
+
+**Users**
+
+![Users](docs/screenshots/11-admin-users.png)
+
+**Activity log**
+
+![Activity log](docs/screenshots/12-admin-activity-log.png)
+
+**Profile**
+
+![Profile](docs/screenshots/13-admin-profile.png)
+
+### Finance approver
+
+**Review queue**
+
+![Review queue](docs/screenshots/14-finance-review-queue.png)
+
+**Funding request at finance step**
+
+![Funding request at finance step](docs/screenshots/15-finance-funding-request-at-finance-step.png)
+
+### Club lead
+
+**My clubs**
+
+![My clubs](docs/screenshots/16-lead-my-clubs.png)
+
+**Approved club requests tab**
+
+![Approved club requests tab](docs/screenshots/17-lead-approved-club-requests-tab.png)
+
+**New funding request**
+
+![New funding request](docs/screenshots/18-lead-new-funding-request.png)
+
+**New room booking**
+
+![New room booking](docs/screenshots/19-lead-new-room-booking.png)
+
+**Club detail changes requested**
+
+![Club detail changes requested](docs/screenshots/20-lead-club-detail-changes-requested.png)
+
+### Phone
+
+**All clubs mobile**
+
+![All clubs mobile](docs/screenshots/21-admin-all-clubs-mobile.png)
+
+**Request detail mobile**
+
+![Request detail mobile](docs/screenshots/22-admin-request-detail-mobile.png)
+
 
 ## Tech stack
 
