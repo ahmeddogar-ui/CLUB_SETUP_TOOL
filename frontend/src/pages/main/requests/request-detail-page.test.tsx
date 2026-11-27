@@ -345,7 +345,7 @@ describe("request actions", () => {
 
 describe("editing a request", () => {
   it("links the lead to the edit page while the request is a draft or has changes requested", async () => {
-    await openRequest(buildRequestDetail());
+    await openRequest(buildRequestDetail({ can_edit: true }));
 
     expect(screen.getByRole("button", { name: "Edit" })).toHaveAttribute(
       "href",
@@ -353,8 +353,18 @@ describe("editing a request", () => {
     );
   });
 
-  it("hides Edit from everyone else and once the request is under review", async () => {
-    await openRequest(buildRequestDetail({ status: "in_review" }));
+  it("follows the server's can_edit, not its own reading of the rules", async () => {
+    await openRequest(
+      buildRequestDetail({ status: "in_review", can_edit: true }),
+    );
+
+    expect(screen.getByRole("button", { name: "Edit" })).toBeInTheDocument();
+  });
+
+  it("hides Edit once the request is under review", async () => {
+    await openRequest(
+      buildRequestDetail({ status: "in_review", can_edit: false }),
+    );
 
     expect(
       screen.queryByRole("button", { name: "Edit" }),
@@ -362,7 +372,7 @@ describe("editing a request", () => {
   });
 
   it("hides Edit from an admin", async () => {
-    await openRequest(buildRequestDetail(), ADMIN);
+    await openRequest(buildRequestDetail({ can_edit: false }), ADMIN);
 
     expect(
       screen.queryByRole("button", { name: "Edit" }),

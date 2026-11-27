@@ -45,6 +45,12 @@ from app.request_types import (
 from app.services.clubs import ensure_owner, get_club
 
 EDITABLE_STATUSES = (RequestStatus.draft, RequestStatus.changes_requested)
+# Moving a booking towards approval makes no sense once its time has come.
+TIME_BOUND_ACTIONS = (
+    RequestAction.submit,
+    RequestAction.start_review,
+    RequestAction.approve,
+)
 NO_DOUBLE_BOOKING_CONSTRAINT = "no_double_booking"
 
 
@@ -67,6 +73,7 @@ class RequestView:
     line_items: list[FundingLineItem]
     room: Room | None
     allowed_actions: list[RequestAction]
+    can_edit: bool
 
 
 @dataclass(frozen=True)
@@ -225,6 +232,8 @@ def update_request(
     """Ownership before status, so a stranger never learns a request's state."""
     request, club = _get_with_club(db, request_id, for_update=True)
     ensure_owner(club, user)
+    new_room_id = details.room_id if isinstance(details, RoomBookingDetails) else None
+    _lock_rooms(db, {request.room_id, new_room_id})
     if request.status not in EDITABLE_STATUSES:
         raise Conflict(
             "Only a draft, or a request with changes requested, can be edited"
@@ -253,6 +262,7 @@ def act_on_request(
     concurrent actions run one after the other, so the second sees the first's
     result: two approvals of one step can't both succeed."""
     request, club = _get_with_club(db, request_id, for_update=True)
+    _lock_rooms(db, {request.room_id})
     _ensure_visible(user, request, club)
 
     from_statuses, actor = ACTIONS[action]
@@ -263,6 +273,9 @@ def act_on_request(
         )
     if not _is_actor(user, request, club, actor):
         raise Forbidden("You may not take this action on this request")
+    refusal = _refusal(action, request)
+    if refusal:
+        raise Conflict(refusal)
 
     steps = APPROVAL_STEPS[request.request_type]
     if action == RequestAction.approve:
@@ -321,9 +334,14 @@ def _get_with_club(
     request = query.first()
     if request is None:
         raise NotFound("Request not found")
-    if for_update and request.room_id is not None:
-        _lock_room(db, request.room_id)
     return request, get_club(db, request.club_id)
+
+
+def _lock_rooms(db: Session, room_ids: set[int | None]) -> None:
+    """Locks each room, in id order, so two moves between the same rooms
+    queue instead of deadlocking."""
+    for room_id in sorted(room_id for room_id in room_ids if room_id is not None):
+        _lock_room(db, room_id)
 
 
 def _lock_room(db: Session, room_id: int) -> Room:
@@ -355,13 +373,35 @@ def _is_actor(user: User, request: Request, club: Clubs, actor: Actor) -> bool:
     return request.awaiting_role == user.role
 
 
+def _refusal(action: RequestAction, request: Request) -> str | None:
+    """Rules beyond status and role, for the actions that would otherwise
+    rewrite what already happened or let time run past a booking."""
+    # A booking's range is always bounded (ck_requests_booking_bounded).
+    starts_at = request.booked_during.lower if request.booked_during else None
+    started = starts_at is not None and starts_at <= datetime.now(UTC)
+    if action in TIME_BOUND_ACTIONS and started:
+        return "This booking has already started"
+    if action == RequestAction.cancel and request.status == RequestStatus.approved:
+        if request.request_type == RequestType.funding:
+            return "Approved funding can't be cancelled"
+        if started:
+            return "This booking has already started"
+    return None
+
+
 def _allowed_actions(user: User, request: Request, club: Clubs) -> list[RequestAction]:
     """What this user may do now; the UI shows exactly these."""
     return [
         action
         for action, (from_statuses, actor) in ACTIONS.items()
-        if request.status in from_statuses and _is_actor(user, request, club, actor)
+        if request.status in from_statuses
+        and _is_actor(user, request, club, actor)
+        and _refusal(action, request) is None
     ]
+
+
+def _can_edit(user: User, request: Request, club: Clubs) -> bool:
+    return club.submitter_id == user.id and request.status in EDITABLE_STATUSES
 
 
 def _approved_step_count(db: Session, request: Request) -> int:
@@ -473,4 +513,5 @@ def _view(db: Session, request: Request, club: Clubs, user: User) -> RequestView
         line_items=line_items,
         room=room,
         allowed_actions=_allowed_actions(user, request, club),
+        can_edit=_can_edit(user, request, club),
     )

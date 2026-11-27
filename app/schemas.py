@@ -308,6 +308,8 @@ class RequestDetailOut(BaseModel):
     approvals: list[ApprovalOut]
     details: FundingDetailsOut | RoomBookingDetailsOut
     allowed_actions: list[RequestAction]
+    # The viewer may change the title and details (PATCH).
+    can_edit: bool
 
 
 class RequestEventOut(BaseModel):

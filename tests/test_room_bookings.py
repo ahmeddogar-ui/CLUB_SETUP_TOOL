@@ -5,8 +5,9 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 from sqlalchemy import select
+from sqlalchemy.dialects.postgresql import Range
 
-from app.models import ClubStatus, Room
+from app.models import ClubStatus, Request, Room
 from tests.conftest import auth, make_club
 from tests.request_helpers import a_room, act, act_ok, at, booking_body, create_request
 
@@ -139,3 +140,47 @@ def test_an_unknown_room_is_404(client, lead, club):
         headers=auth(lead),
     )
     assert response.status_code == 404
+
+
+def _start_in_the_past(db, request_id):
+    """A draft made for a time that has since passed (the details check only
+    runs when they are entered)."""
+    request = db.get(Request, request_id)
+    starts = datetime.now(UTC) - timedelta(hours=2)
+    request.booked_during = Range(starts, starts + timedelta(hours=1), bounds="[)")
+    db.commit()
+
+
+def test_a_booking_whose_time_has_passed_cant_be_submitted(
+    client, db, lead, club, room
+):
+    draft = create_request(client, lead, club.id, booking_body(room.id, at(10), at(11)))
+    _start_in_the_past(db, draft["id"])
+
+    response = act(client, lead, draft["id"], "submit")
+
+    assert response.status_code == 409
+    assert "already started" in response.json()["detail"]
+
+
+def test_a_booking_whose_time_has_passed_cant_be_approved(
+    client, db, lead, admin, club, room
+):
+    request_id, _ = book(client, lead, club, room, at(10), at(11))
+    act_ok(client, admin, request_id, "start-review")
+    _start_in_the_past(db, request_id)
+
+    assert act(client, admin, request_id, "approve").status_code == 409
+    detail = client.get(f"/api/requests/{request_id}", headers=auth(admin)).json()
+    assert detail["allowed_actions"] == ["reject", "request_changes"]
+
+
+def test_an_approved_booking_that_has_started_cant_be_cancelled(
+    client, db, lead, admin, club, room
+):
+    request_id, _ = book(client, lead, club, room, at(10), at(11))
+    act_ok(client, admin, request_id, "start-review")
+    act_ok(client, admin, request_id, "approve")
+    _start_in_the_past(db, request_id)
+
+    assert act(client, lead, request_id, "cancel").status_code == 409

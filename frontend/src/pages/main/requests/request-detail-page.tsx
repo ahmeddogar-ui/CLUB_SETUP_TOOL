@@ -9,11 +9,7 @@ import { useAuth } from "@/contexts";
 import { OctagonAlertIcon } from "@/icons";
 import { apiFetch } from "@/lib/api";
 import { REQUEST_TYPE_LABELS } from "@/lib/request-labels";
-import type {
-  RequestDetail,
-  RequestEvent,
-  RequestStatus,
-} from "@/lib/request-types";
+import type { RequestDetail, RequestEvent } from "@/lib/request-types";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useParams } from "react-router";
 import { ApprovalsCard } from "./approvals-card";
@@ -21,11 +17,6 @@ import { RequestActions } from "./request-actions";
 import { RequestDetailsCard } from "./request-details-card";
 import { RequestHistoryCard } from "./request-history-card";
 import { RequestStatusBadge } from "./request-status-badge";
-
-const EDITABLE_STATUSES: readonly RequestStatus[] = [
-  "draft",
-  "changes_requested",
-];
 
 export default function RequestDetailPage() {
   const { requestId } = useParams();
@@ -54,8 +45,7 @@ export default function RequestDetailPage() {
   if (!request.data || !events.data) return <RequestDetailSkeleton />;
 
   const { data } = request;
-  const isEditable =
-    data.created_by_id === user?.id && EDITABLE_STATUSES.includes(data.status);
+  const isEditable = data.can_edit;
   // Finance approvers can't open clubs, so the name isn't a link for them.
   const canOpenClub = user?.role !== "finance_approver";
 

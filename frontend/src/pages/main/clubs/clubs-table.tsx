@@ -99,7 +99,8 @@ export function ClubsTable({
 
   return (
     <div className="max-w-full overflow-x-auto">
-      <Table className="table-fixed md:table-auto">
+      {/* table-fixed only applies with an explicit width (w-full). */}
+      <Table className="w-full table-fixed md:table-auto">
         <TableHeader className="border-y border-gray-100 bg-gray-50 dark:border-gray-800 dark:bg-gray-900">
           <TableRow>
             {header("Club", "name", "w-1/2 md:w-auto")}

@@ -271,7 +271,11 @@ class Request(Base):
             f"(status IN ({_status_list(AWAITING_APPROVAL_STATUSES)}))",
             name="awaiting_role_matches_status",
         ),
-        CheckConstraint("NOT isempty(booked_during)", name="booking_not_empty"),
+        CheckConstraint(
+            "NOT isempty(booked_during) AND NOT lower_inf(booked_during) "
+            "AND NOT upper_inf(booked_during)",
+            name="booking_bounded",
+        ),
         # No double booking: two bookings that hold a slot can't overlap in
         # one room. Ranges are [start, end), so back-to-back bookings fit.
         ExcludeConstraint(
@@ -281,10 +285,12 @@ class Request(Base):
             using="gist",
             where=text(f"status IN ({_status_list(SLOT_HOLDING_STATUSES)})"),
         ),
-        # A club's Requests tab, newest first.
-        Index("idx_requests_club_updated", "club_id", "updated_at"),
+        # A club's Requests tab, newest first; id breaks ties, as the query does.
+        Index("idx_requests_club_updated", "club_id", "updated_at", "id"),
         # The review queue: what waits for a role, oldest first.
-        Index("idx_requests_awaiting_updated", "awaiting_role", "updated_at"),
+        Index("idx_requests_awaiting_updated", "awaiting_role", "updated_at", "id"),
+        # An approver's unfiltered list, newest first.
+        Index("idx_requests_updated", "updated_at", "id"),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)

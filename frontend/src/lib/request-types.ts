@@ -123,6 +123,8 @@ export interface RequestDetail {
   details: FundingDetailsOut | RoomBookingDetailsOut;
   /** What the signed-in user may do now; the UI shows exactly these. */
   allowed_actions: RequestAction[];
+  /** The viewer may change the title and details. */
+  can_edit: boolean;
 }
 
 export interface RequestEvent {

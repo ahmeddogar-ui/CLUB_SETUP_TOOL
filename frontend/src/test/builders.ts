@@ -231,6 +231,7 @@ export function buildRequestDetail(
       total_cents: 17550,
     },
     allowed_actions: [],
+    can_edit: false,
     ...overrides,
   };
 }

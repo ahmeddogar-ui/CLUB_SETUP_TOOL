@@ -51,6 +51,8 @@ function requirementRow(page: Page, label: string) {
 test("a lead's club goes from draft to approved by an admin", async ({
   browser,
 }) => {
+  // The longest journey in the suite: registration, then a room booking.
+  test.setTimeout(60_000);
   const leadPage = await (await browser.newContext()).newPage();
   const adminPage = await (await browser.newContext()).newPage();
 
@@ -127,6 +129,54 @@ test("a lead's club goes from draft to approved by an admin", async ({
     await expect(
       leadPage.getByRole("button", { name: /submit/i }),
     ).not.toBeVisible();
+  });
+
+  await test.step("the lead books a room; the same slot is refused; the admin approves", async () => {
+    // The e2e database is never reset, so each run books its own day.
+    const day = new Date(Date.now() + (2 + (runId % 20000)) * 24 * 3600 * 1000);
+    const date = day.toISOString().slice(0, 10);
+
+    const bookRoom = async (title: string) => {
+      await leadPage.getByRole("tab", { name: "Requests" }).click();
+      await leadPage.getByRole("button", { name: "New request" }).click();
+      await leadPage.getByText("Room booking", { exact: true }).click();
+      await leadPage.getByLabel(/^title/i).fill(title);
+      await leadPage
+        .getByRole("combobox", { name: /^room/i })
+        .selectOption({ index: 1 });
+      await leadPage.getByLabel(/^date/i).fill(date);
+      await leadPage.getByLabel(/^start time/i).fill("10:00");
+      await leadPage.getByLabel(/^end time/i).fill("12:00");
+      await leadPage.getByRole("button", { name: "Save draft" }).click();
+      await expect(
+        leadPage.getByRole("heading", { name: title }),
+      ).toBeVisible();
+      await leadPage.getByRole("button", { name: "Submit for review" }).click();
+    };
+
+    await bookRoom(`Meeting ${runId}`);
+    await expect(
+      leadPage.getByText("Submitted", { exact: true }),
+    ).toBeVisible();
+    await leadPage.getByRole("link", { name: CLUB_NAME }).click();
+
+    await bookRoom(`Clashing meeting ${runId}`);
+    await expect(
+      leadPage.getByText(/is already booked for part of that time/),
+    ).toBeVisible();
+    await leadPage.getByRole("link", { name: CLUB_NAME }).click();
+
+    await adminPage.goto("/review");
+    await adminPage.getByRole("link", { name: `Meeting ${runId}` }).click();
+    await adminPage.getByRole("button", { name: "Start review" }).click();
+    await adminPage.getByRole("button", { name: "Approve" }).click();
+    await adminPage
+      .getByRole("dialog")
+      .getByRole("button", { name: "Approve" })
+      .click();
+    await expect(
+      adminPage.getByText("Approved", { exact: true }).first(),
+    ).toBeVisible();
   });
 
   await test.step("the refresh cookie works through the proxy until sign-out", async () => {

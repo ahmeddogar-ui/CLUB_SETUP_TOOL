@@ -272,7 +272,11 @@ def _create_demo_requests(
         request_id = create_request(
             db, club_ids[club_name], lead, title, details
         ).request.id
-        _walk(db, request_id, _WALK_TO[status], lead, [admin, finance])
+        actions = _WALK_TO[status]
+        if status == RequestStatus.in_review:
+            # Past the admin's step: waiting for the finance approver.
+            actions = [*actions, RequestAction.approve]
+        _walk(db, request_id, actions, lead, [admin, finance])
 
     rooms = {room.name: room.id for room in list_rooms(db)}
     this_hour = datetime.now(UTC).replace(minute=0, second=0, microsecond=0)

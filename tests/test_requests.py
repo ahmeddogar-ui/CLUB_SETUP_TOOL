@@ -138,7 +138,31 @@ def test_rejected_and_cancelled_are_final(client, lead, admin, funding, club):
     assert act(client, lead, other["id"], "submit").status_code == 409
 
 
-def test_the_lead_can_cancel_an_approved_request(client, lead, admin, db, club):
+def test_approved_funding_cant_be_cancelled(client, lead, admin, finance, funding):
+    request_id = funding["id"]
+    act_ok(client, lead, request_id, "submit")
+    act_ok(client, admin, request_id, "start-review")
+    act_ok(client, admin, request_id, "approve")
+    approved = act_ok(client, finance, request_id, "approve")
+    assert approved["allowed_actions"] == []
+
+    response = act(client, lead, request_id, "cancel")
+
+    assert response.status_code == 409
+    assert "approved funding" in response.json()["detail"].lower()
+
+
+def test_can_edit_follows_the_rule(client, lead, admin, funding):
+    url = f"/api/requests/{funding['id']}"
+    assert client.get(url, headers=auth(lead)).json()["can_edit"] is True
+    assert client.get(url, headers=auth(admin)).json()["can_edit"] is False
+    act_ok(client, lead, funding["id"], "submit")
+    assert client.get(url, headers=auth(lead)).json()["can_edit"] is False
+
+
+def test_the_lead_can_cancel_an_approved_booking_before_it_starts(
+    client, lead, admin, db, club
+):
     booking = create_request(
         client, lead, club.id, booking_body(a_room(db).id, at(10), at(11))
     )

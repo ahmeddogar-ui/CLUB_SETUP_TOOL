@@ -97,7 +97,9 @@ def upgrade() -> None:
             name=op.f("ck_requests_booking_fields_match_type"),
         ),
         sa.CheckConstraint(
-            "NOT isempty(booked_during)", name=op.f("ck_requests_booking_not_empty")
+            "NOT isempty(booked_during) AND NOT lower_inf(booked_during) "
+            "AND NOT upper_inf(booked_during)",
+            name=op.f("ck_requests_booking_bounded"),
         ),
         sa.ForeignKeyConstraint(
             ["club_id"],
@@ -113,15 +115,17 @@ def upgrade() -> None:
         ),
         sa.PrimaryKeyConstraint("id", name=op.f("pk_requests")),
     )
+    # The review queue (awaiting a role, oldest first), a club's Requests tab,
+    # and an approver's unfiltered list; id breaks ties, as the queries do.
     op.create_index(
         "idx_requests_awaiting_updated",
         "requests",
-        ["awaiting_role", "updated_at"],
-        unique=False,
+        ["awaiting_role", "updated_at", "id"],
     )
     op.create_index(
-        "idx_requests_club_updated", "requests", ["club_id", "updated_at"], unique=False
+        "idx_requests_club_updated", "requests", ["club_id", "updated_at", "id"]
     )
+    op.create_index("idx_requests_updated", "requests", ["updated_at", "id"])
     op.create_table(
         "funding_line_items",
         sa.Column("id", sa.Integer(), nullable=False),
@@ -210,6 +214,7 @@ def downgrade() -> None:
     op.drop_column("events", "request_id")
     op.drop_table("request_approvals")
     op.drop_table("funding_line_items")
+    op.drop_index("idx_requests_updated", table_name="requests")
     op.drop_index("idx_requests_club_updated", table_name="requests")
     op.drop_index("idx_requests_awaiting_updated", table_name="requests")
     op.drop_table("requests")

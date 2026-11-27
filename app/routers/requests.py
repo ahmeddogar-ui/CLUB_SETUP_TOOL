@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, Query, status
 
 from app.core.security import get_current_user
 from app.database import DbSession
-from app.models import RequestStatus, User
+from app.models import RequestStatus, RequestType, User
 from app.request_transitions import RequestAction
 from app.request_types import APPROVAL_STEPS
 from app.schemas import (
@@ -140,7 +140,8 @@ def approve(
     payload: OptionalNoteRequest | None = None,
     current_user: User = Depends(get_current_user),
 ):
-    note = payload.note or None if payload else None
+    # A blank optional note is no note.
+    note = (payload.note or None) if payload else None
     return _act(db, request_id, current_user, RequestAction.approve, note)
 
 
@@ -197,7 +198,8 @@ def _detail(view: RequestView) -> RequestDetailOut:
     request = view.request
     steps = APPROVAL_STEPS[request.request_type]
     details: FundingDetailsOut | RoomBookingDetailsOut
-    if view.room is not None and request.booked_during is not None:
+    if request.request_type == RequestType.room_booking:
+        assert view.room is not None and request.booked_during is not None
         details = RoomBookingDetailsOut(
             room_id=view.room.id,
             room_name=view.room.name,
@@ -240,4 +242,5 @@ def _detail(view: RequestView) -> RequestDetailOut:
         ],
         details=details,
         allowed_actions=view.allowed_actions,
+        can_edit=view.can_edit,
     )

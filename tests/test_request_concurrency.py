@@ -21,7 +21,8 @@ from app.models import (
     UserRole,
 )
 from app.request_transitions import RequestAction
-from app.services.requests import act_on_request
+from app.request_types import RoomBookingDetails
+from app.services.requests import act_on_request, update_request
 from tests.conftest import make_club, make_user
 
 # Twenty clubs try to book the same room for the same hour at the same moment.
@@ -127,3 +128,33 @@ def test_parallel_approvals_of_one_step_succeed_exactly_once(engine, committed_d
         .where(RequestApproval.request_id == request_id)
     )
     assert approvals == 1
+
+
+def test_two_bookings_swapping_rooms_at_once_dont_deadlock(engine, committed_db):
+    """Each move locks both rooms in id order, so the two moves queue."""
+    room_a, room_b = committed_db.scalars(select(Room).order_by(Room.id).limit(2)).all()
+    starts = (datetime.now(UTC) + timedelta(days=3)).replace(
+        minute=0, second=0, microsecond=0
+    )
+    lead = make_user(committed_db, UserRole.club_lead)
+    first = draft_booking(committed_db, lead, room_a, starts)
+    second = draft_booking(committed_db, lead, room_b, starts + timedelta(hours=2))
+    moves = [(first, room_b), (second, room_a)]
+    lead_id = lead.id
+
+    def move(index: int) -> str:
+        request_id, room = moves[index]
+        with Session(engine) as session:
+            user = session.get_one(User, lead_id)
+            request = session.get_one(Request, request_id)
+            details = RoomBookingDetails(
+                request_type=RequestType.room_booking,
+                room_id=room.id,
+                starts_at=request.booked_during.lower,
+                ends_at=request.booked_during.upper,
+            )
+            session.rollback()
+            update_request(session, request_id, user, None, details)
+            return "moved"
+
+    assert run_together(2, move) == ["moved", "moved"]

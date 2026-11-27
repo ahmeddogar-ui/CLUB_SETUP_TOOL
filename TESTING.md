@@ -9,7 +9,8 @@ Three layers, each answering a different question:
 | End-to-end | Playwright | `frontend/e2e/` | The real stack works together on the main journey | ~15s |
 
 Most tests live in the first two layers. E2E is kept to the one journey that would hurt most
-if broken (a club going from draft to approved), because it is the slowest and hardest to debug.
+if broken (a club going from draft to approved, then booking a room, being refused a taken
+slot, and getting the booking approved), because it is the slowest and hardest to debug.
 
 ## One-time setup
 
@@ -53,8 +54,10 @@ it yourself.
   only release a savepoint inside it. `test_harness.py` proves this keeps working.
 - **Don't assume an empty database.** An admin's club list includes every club in it, so
   list tests compare only the clubs they created.
-- **Concurrency tests commit for real.** A lock only matters between separate transactions,
-  so `test_concurrency.py` uses its own sessions and empties every table afterwards.
+- **Concurrency tests commit for real.** A lock or constraint only matters between separate
+  transactions, so `test_concurrency.py` and `test_request_concurrency.py` use the
+  `committed_db` fixture, their own sessions, and empty every table (except the seeded rooms)
+  afterwards.
 - **Two ways to get a club.** Use `create_club(client, user)` when you want the real API
   path. Use `make_club(db, owner, status=...)` to place a club directly in some state, so a
   test about approval doesn't have to walk through submit first.
