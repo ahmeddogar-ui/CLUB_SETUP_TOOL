@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any
 
-from sqlalchemy import ColumnElement, ScalarSelect, func, select
+from sqlalchemy import ColumnElement, ScalarSelect, func, or_, select
 from sqlalchemy.orm import Query, Session
 
 from app.exceptions import Conflict, Forbidden, NotFound
@@ -127,11 +127,14 @@ def _document_count(*conditions: ColumnElement[bool]) -> ScalarSelect[int]:
 
 
 def _visible_clubs(db: Session, user: User) -> Query[Clubs]:
-    """Role scoping; the filters applied on top only ever narrow this set."""
+    """Role scoping, the same rule as ensure_owner_or_admin; the filters
+    applied on top only ever narrow this set."""
     visible = db.query(Clubs)
-    if user.role != UserRole.admin:
-        visible = visible.filter(Clubs.submitter_id == user.id)
-    return visible
+    if user.role == UserRole.admin:
+        return visible.filter(
+            or_(Clubs.status != ClubStatus.drafting, Clubs.submitter_id == user.id)
+        )
+    return visible.filter(Clubs.submitter_id == user.id)
 
 
 def _filtered(
@@ -242,8 +245,14 @@ def get_club_for_update(db: Session, club_id: int) -> Clubs:
 
 
 def ensure_owner_or_admin(club: Clubs, user: User) -> None:
-    if user.role != UserRole.admin and club.submitter_id != user.id:
+    """The lead sees their club; admins see it once it has been submitted.
+    A draft is the lead's own until then."""
+    if club.submitter_id == user.id:
+        return
+    if user.role != UserRole.admin:
         raise Forbidden("Not your club")
+    if club.status == ClubStatus.drafting:
+        raise Forbidden("This club is still a draft")
 
 
 def ensure_owner(club: Clubs, user: User) -> None:

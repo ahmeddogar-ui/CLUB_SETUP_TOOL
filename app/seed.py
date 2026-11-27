@@ -6,7 +6,8 @@ its own, so a run that fails partway leaves partial data: reseed into a fresh
 database."""
 
 from dataclasses import dataclass
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime, time, timedelta
+from zoneinfo import ZoneInfo
 
 from sqlalchemy.orm import Session
 
@@ -238,7 +239,10 @@ _FUNDING = [
     ("Robotics Club", RequestStatus.cancelled, "Team jackets", [("Jackets x12", 540)]),
 ]
 
-# (club, status, title, room, days from now, start hour, hours)
+# UTM's time zone: demo bookings are at local hours there.
+CAMPUS_TIME_ZONE = ZoneInfo("America/Toronto")
+
+# (club, status, title, room, days from now, local start hour, hours)
 _BOOKINGS = [
     ("Robotics Club", RequestStatus.draft, "Build night", "DV 2074", 3, 18, 3),
     ("Coding Club", RequestStatus.submitted, "Intro to Git workshop", "MN 1210", 4, 17, 2),
@@ -279,9 +283,12 @@ def _create_demo_requests(
         _walk(db, request_id, actions, lead, [admin, finance])
 
     rooms = {room.name: room.id for room in list_rooms(db)}
-    this_hour = datetime.now(UTC).replace(minute=0, second=0, microsecond=0)
+    today = datetime.now(CAMPUS_TIME_ZONE).date()
     for club_name, status, title, room, days, hour, hours in _BOOKINGS:
-        starts = this_hour.replace(hour=hour) + timedelta(days=days)
+        # Local wall-clock time on campus, with that date's DST offset.
+        starts = datetime.combine(
+            today + timedelta(days=days), time(hour), tzinfo=CAMPUS_TIME_ZONE
+        )
         booking = RoomBookingDetails(
             request_type="room_booking",
             room_id=rooms[room],

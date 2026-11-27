@@ -24,7 +24,7 @@ def names(page):
 
 
 def test_each_club_carries_its_owner_and_last_update(client, db, lead, admin):
-    club = make_club(db, lead, name="Owner Check Club")
+    club = make_club(db, lead, status=ClubStatus.submitted, name="Owner Check Club")
     [item] = get_page(client, admin, q="Owner Check Club")["items"]
     assert item["owner_name"] == lead.name
     assert datetime.fromisoformat(item["updated_at"]) == club.updated_at
@@ -173,6 +173,6 @@ def test_admin_status_counts_include_every_owner(client, db, lead, other_lead, a
 
 def test_admin_sees_other_owners_in_the_list(client, db, admin):
     owner = make_user(db, UserRole.club_lead)
-    make_club(db, owner, name="Someone Else's Club")
+    make_club(db, owner, status=ClubStatus.submitted, name="Someone Else's Club")
     [club] = get_page(client, admin, q="Someone Else's Club")["items"]
     assert club["owner_name"] == owner.name

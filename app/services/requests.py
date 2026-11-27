@@ -7,7 +7,7 @@ from datetime import UTC, datetime
 from enum import Enum
 
 from psycopg2.errors import ExclusionViolation
-from sqlalchemy import ColumnElement, ScalarSelect, func, or_, select
+from sqlalchemy import ColumnElement, ScalarSelect, and_, func, or_, select
 from sqlalchemy.dialects.postgresql import Range
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, aliased
@@ -112,16 +112,23 @@ def _types_approved_by(user: User) -> list[RequestType]:
 
 
 def _can_see(user: User, request: Request, club_owner_id: int) -> bool:
-    """The club's lead, and anyone who approves a step of its type: admins see
-    every request, finance approvers only funding."""
-    return club_owner_id == user.id or request.request_type in _types_approved_by(user)
+    """The club's lead; and, once it is submitted, anyone who approves a step
+    of its type: admins see every request, finance approvers only funding.
+    A draft is the lead's own."""
+    return club_owner_id == user.id or (
+        request.status != RequestStatus.draft
+        and request.request_type in _types_approved_by(user)
+    )
 
 
 def _visible_to(user: User) -> ColumnElement[bool]:
     """_can_see as a filter; the query must join Clubs."""
     return or_(
         Clubs.submitter_id == user.id,
-        Request.request_type.in_(_types_approved_by(user)),
+        and_(
+            Request.status != RequestStatus.draft,
+            Request.request_type.in_(_types_approved_by(user)),
+        ),
     )
 
 

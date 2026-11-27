@@ -82,7 +82,8 @@ def test_each_step_belongs_to_its_role(client, lead, admin, finance, funding):
 
 def test_actions_out_of_order_are_409(client, lead, admin, funding):
     request_id = funding["id"]
-    assert act(client, admin, request_id, "approve").status_code == 409
+    # A draft is the lead's own: an approver can't even see it yet.
+    assert act(client, admin, request_id, "approve").status_code == 403
     act_ok(client, lead, request_id, "submit")
     assert act(client, lead, request_id, "submit").status_code == 409
     assert act(client, admin, request_id, "approve").status_code == 409
@@ -155,9 +156,9 @@ def test_approved_funding_cant_be_cancelled(client, lead, admin, finance, fundin
 def test_can_edit_follows_the_rule(client, lead, admin, funding):
     url = f"/api/requests/{funding['id']}"
     assert client.get(url, headers=auth(lead)).json()["can_edit"] is True
-    assert client.get(url, headers=auth(admin)).json()["can_edit"] is False
     act_ok(client, lead, funding["id"], "submit")
     assert client.get(url, headers=auth(lead)).json()["can_edit"] is False
+    assert client.get(url, headers=auth(admin)).json()["can_edit"] is False
 
 
 def test_the_lead_can_cancel_an_approved_booking_before_it_starts(
@@ -229,6 +230,9 @@ def test_who_can_see_a_request(
     booking = create_request(
         client, lead, club.id, booking_body(a_room(db).id, at(10), at(11))
     )
+    # Submitted: drafts are private (test_draft_privacy.py).
+    act_ok(client, lead, funding["id"], "submit")
+    act_ok(client, lead, booking["id"], "submit")
     url = f"/api/requests/{funding['id']}"
     assert client.get(url, headers=auth(lead)).status_code == 200
     assert client.get(url, headers=auth(admin)).status_code == 200
@@ -320,7 +324,9 @@ def test_listing_requests(client, db, lead, other_lead, admin, finance, club, fu
     assert ids(finance, club_id=club.id) == [funding["id"]]
     assert ids(admin, awaiting_me="true", club_id=club.id) == [funding["id"]]
     assert ids(finance, awaiting_me="true", club_id=club.id) == []
-    assert ids(admin, club_id=club.id, status="draft") == [booking["id"]]
+    assert ids(lead, club_id=club.id, status="draft") == [booking["id"]]
+    # The booking is still a draft: private to the lead.
+    assert ids(admin, club_id=club.id) == [funding["id"]]
 
     page = client.get(
         "/api/requests", params={"club_id": club.id}, headers=auth(lead)

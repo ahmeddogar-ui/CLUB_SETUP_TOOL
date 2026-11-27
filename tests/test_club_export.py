@@ -26,6 +26,13 @@ def set_state(db, club_id, status, days_ago):
     db.commit()
 
 
+def submitted_club(client, db, lead, name):
+    """Admins see a club once it is submitted; a draft is its lead's own."""
+    club_id = create_club(client, lead, name=name)["id"]
+    set_state(db, club_id, ClubStatus.submitted, days_ago=0)
+    return club_id
+
+
 def export_csv(client, user, params=()):
     return client.get("/api/clubs/export.csv", params=list(params), headers=auth(user))
 
@@ -47,13 +54,13 @@ def test_header_row_is_exact(client, admin):
     )
 
 
-def test_exports_club_fields(client, admin, lead):
-    club = create_club(client, lead, name="Chess Club")
+def test_exports_club_fields(client, db, admin, lead):
+    club_id = submitted_club(client, db, lead, "Chess Club")
 
-    [row] = rows_of(export_csv(client, admin), {club["id"]})
+    [row] = rows_of(export_csv(client, admin), {club_id})
 
     assert row["name"] == "Chess Club"
-    assert row["status"] == "drafting"
+    assert row["status"] == "submitted"
     assert row["owner"] == lead.name
     assert row["documents_provided"] == "0"
     assert row["documents_total"] == "4"
@@ -61,20 +68,20 @@ def test_exports_club_fields(client, admin, lead):
 
 
 def test_respects_status_filter(client, db, admin, lead):
-    drafting = create_club(client, lead, name="Drafty")["id"]
-    submitted = create_club(client, lead, name="Sent")["id"]
-    set_state(db, submitted, ClubStatus.submitted, days_ago=1)
+    reviewing = create_club(client, lead, name="Reviewing")["id"]
+    set_state(db, reviewing, ClubStatus.under_review, days_ago=1)
+    submitted = submitted_club(client, db, lead, "Sent")
 
     response = export_csv(client, admin, [("status", "submitted")])
 
-    assert [row["id"] for row in rows_of(response, {drafting, submitted})] == [
+    assert [row["id"] for row in rows_of(response, {reviewing, submitted})] == [
         str(submitted)
     ]
 
 
-def test_respects_search(client, admin, lead):
-    chess = create_club(client, lead, name="Chess Club")["id"]
-    film = create_club(client, lead, name="Film Club")["id"]
+def test_respects_search(client, db, admin, lead):
+    chess = submitted_club(client, db, lead, "Chess Club")
+    film = submitted_club(client, db, lead, "Film Club")
 
     response = export_csv(client, admin, [("q", "chess")])
 
@@ -98,16 +105,16 @@ def test_respects_sort_and_order(client, db, admin, lead):
     assert exported_ids("name", "desc") == [str(second), str(first)]
 
 
-def test_exports_every_matching_club_without_paging(client, admin, lead):
-    created = {create_club(client, lead, name=f"Club {n}")["id"] for n in range(25)}
+def test_exports_every_matching_club_without_paging(client, db, admin, lead):
+    created = {submitted_club(client, db, lead, f"Club {n}") for n in range(25)}
 
     assert len(rows_of(export_csv(client, admin), created)) == 25
 
 
-def test_formula_like_text_is_prefixed_with_a_quote(client, admin, lead):
-    club = create_club(client, lead, name='=HYPERLINK("http://evil")')
+def test_formula_like_text_is_prefixed_with_a_quote(client, db, admin, lead):
+    club_id = submitted_club(client, db, lead, '=HYPERLINK("http://evil")')
 
-    [row] = rows_of(export_csv(client, admin), {club["id"]})
+    [row] = rows_of(export_csv(client, admin), {club_id})
 
     assert row["name"] == '\'=HYPERLINK("http://evil")'
 

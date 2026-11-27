@@ -47,7 +47,8 @@ def clubs(client, db, lead, other_lead):
     d = create_club(client, other_lead, name="D")["id"]
     e = create_club(client, lead, name="E")["id"]
     set_state(db, a, ClubStatus.submitted, days_ago=2)
-    set_state(db, b, ClubStatus.drafting, days_ago=9)
+    # Not drafting: an admin doesn't see drafts (test_draft_privacy.py).
+    set_state(db, b, ClubStatus.changes_requested, days_ago=9)
     set_state(db, c, ClubStatus.submitted, days_ago=7)
     set_state(db, d, ClubStatus.under_review, days_ago=4)
     set_state(db, e, ClubStatus.submitted, days_ago=5)
@@ -162,8 +163,8 @@ def test_club_lead_newest_still_scoped_to_own_clubs(client, lead, clubs):
 
 
 def test_filter_works_for_any_status(client, admin, clubs):
-    drafting = list_clubs(client, admin, [("status", "drafting")])
-    assert ids_of_ours(drafting, clubs) == [clubs["b"]]
+    changes = list_clubs(client, admin, [("status", "changes_requested")])
+    assert ids_of_ours(changes, clubs) == [clubs["b"]]
     approved = list_clubs(client, admin, [("status", "approved")])
     assert ids_of_ours(approved, clubs) == []
 
@@ -208,6 +209,8 @@ def test_sort_by_name_ignores_case(client, admin, db, lead):
         "a": create_club(client, lead, name="Abacus")["id"],
         "c": create_club(client, lead, name="Curling")["id"],
     }
+    for club_id in ours.values():
+        set_state(db, club_id, ClubStatus.submitted, days_ago=1)
     result = list_clubs(client, admin, [("sort", "name"), ("order", "asc")])
     assert ids_of_ours(result, ours) == [ours["a"], ours["b"], ours["c"]]
 
@@ -223,8 +226,8 @@ def test_sort_by_owner_then_id(client, db, admin, lead, other_lead, clubs):
 
 def test_sort_by_status_follows_lifecycle_order(client, admin, clubs):
     result = list_clubs(client, admin, [("sort", "status"), ("order", "asc")])
-    # drafting (b) -> submitted (a, c, e by id) -> under_review (d)
-    assert ids_of_ours(result, clubs) == [clubs[k] for k in "baced"]
+    # submitted (a, c, e by id) -> under_review (d) -> changes_requested (b)
+    assert ids_of_ours(result, clubs) == [clubs[k] for k in "acedb"]
 
 
 def test_order_without_sort_keeps_default_order(client, admin, clubs):

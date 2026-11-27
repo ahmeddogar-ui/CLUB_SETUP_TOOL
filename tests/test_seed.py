@@ -1,3 +1,5 @@
+from zoneinfo import ZoneInfo
+
 import pytest
 
 from app.exceptions import Conflict
@@ -120,3 +122,12 @@ def test_seed_starts_conversations(db):
     seed_demo(db)
     comments = db.query(Event).filter(Event.event_type == "comment_posted").count()
     assert comments >= 4
+
+
+def test_seed_books_rooms_at_toronto_local_hours(db):
+    """UTM is in Toronto: "Author talk" is listed for 18:00, so it starts at
+    18:00 there, whatever the server's clock or the date's DST offset."""
+    seed_demo(db)
+    talk = db.query(Request).filter(Request.title == "Author talk").one()
+    starts = talk.booked_during.lower.astimezone(ZoneInfo("America/Toronto"))
+    assert (starts.hour, starts.minute) == (18, 0)

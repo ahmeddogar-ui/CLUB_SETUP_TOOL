@@ -112,7 +112,9 @@ Each item adds `owner_name`, `updated_at` and `documents_provided` /
 `documents_total` to the club. A page costs three queries whatever its size:
 the items (owner join plus correlated document counts), the filtered `total`,
 and one `GROUP BY status` for `status_counts`, which covers every club the
-user can see and ignores the filters. A document counts as provided while it
+user can see and ignores the filters. An admin sees every club except
+drafts, which stay their lead's own until submitted (`_visible_clubs`, and
+`ensure_owner_or_admin` for a single club). A document counts as provided while it
 is `submitted` or `approved` (`DOCUMENT_PROVIDED_STATUSES`, shared with the
 submit guard). A club's `updated_at` moves on every status change, edit and
 new document link; reviewing a requirement doesn't move it, so the review
@@ -169,8 +171,9 @@ because it creates the club; requests are one generic engine.
   set exactly while `submitted` or `in_review` (a check constraint). It is
   derivable from the steps and this round's approvals, but storing it makes
   the review queue one indexed query (`idx_requests_awaiting_updated`).
-- **Who sees it.** The club's lead, and anyone who approves a step of its type:
-  admins see every request, finance approvers only funding. The same rule is a
+- **Who sees it.** The club's lead, and, once it is submitted, anyone who
+  approves a step of its type: admins see every request, finance approvers
+  only funding. A draft is the lead's own. The same rule is a
   Python check (`_can_see`) and a SQL filter (`_visible_to`).
 - **The UI never re-derives rules.** Each request comes with `allowed_actions`
   and `can_edit` for the viewer, computed by the same code that enforces them.
@@ -311,7 +314,7 @@ state; the auth context owns sign-out.
 | `/signin`, `/signup` | signed out | Sign in; register as a club lead |
 | `/` | leads, admins | `clubs-page.tsx`: a lead's own clubs, or every club for an admin with status counts, status tabs and a name search. Status, search, sort and page are in the URL (`?status=&q=&sort=&order=&page=`); the column headers sort |
 | `/clubs/new` | club leads | `new-club-page.tsx` |
-| `/clubs/:clubId` | owner or admin | `club-detail-page.tsx`: Overview (details, requirements, actions, discussion, history) and Requests (`?tab=requests`: the club's requests, New request for the lead of an approved club) |
+| `/clubs/:clubId` | owner, or an admin once submitted | `club-detail-page.tsx`: Overview (details, requirements, actions, discussion, history) and Requests (`?tab=requests`: the club's requests, New request for the lead of an approved club) |
 | `/clubs/:clubId/requests/new`, `/requests/:id/edit` | the club's lead | Funding (line items, live total) or room booking (room, date, times) |
 | `/requests/:id` | lead, admins, finance (funding) | Details, the approval steps with who/when/note, exactly the viewer's `allowed_actions`, history |
 | `/review` | admins, finance approvers | Clubs waiting for review (admins), and requests awaiting the viewer's role, oldest first. Finance approvers land here |
@@ -358,6 +361,7 @@ database is Neon Postgres. See the README for the steps.
 | Offset paging everywhere, comments deduped by id | One paging scheme for every list; a comment posted mid-scroll can only repeat, and the dedupe hides that | Cursor paging for comments only |
 | CSV rendered in the router, cells starting `= + - @` prefixed with `'`, UTF-8 BOM | CSV is a transport format; names are user input that Excel would run as formulas; Excel needs the BOM for non-ASCII | Rendering in the service; a CSV library |
 | Wrong current password is 403 | A 401 would make the frontend refresh and sign the user out | 401, or 400 with a new exception type |
+| Drafts are private to their lead (clubs and requests) | A draft is work in progress; reviewers see it once it is submitted. One rule per entity, used by both the row check and the list filter | Letting admins browse drafts |
 | One request engine; types are data (details model + approval roles) | A new type adds fields and steps, not a new workflow, routes or UI states | A table and workflow per request type |
 | Club registration stays its own workflow | It creates the club and has per-document review, which no request has | Making registration a request type |
 | `awaiting_role` stored on the request | The review queue becomes one indexed query; a check constraint keeps it consistent with the status | Computing the current step per row from approvals |

@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { CLUB_STATUS_BADGES, CLUB_STATUSES } from "@/lib/labels";
+import { CLUB_STATUS_BADGES, SUBMITTED_CLUB_STATUSES } from "@/lib/labels";
 import type { ClubStatus } from "@/lib/types";
 import type { FormEvent, ReactNode } from "react";
 
@@ -21,7 +21,7 @@ export function ClubFilters({
 }: ClubFiltersProps) {
   const tabs: { label: string; value: ClubStatus | null }[] = [
     { label: "All", value: null },
-    ...CLUB_STATUSES.map((value) => ({
+    ...SUBMITTED_CLUB_STATUSES.map((value) => ({
       label: CLUB_STATUS_BADGES[value].label,
       value,
     })),

@@ -252,7 +252,7 @@ describe("all clubs (admin)", () => {
     serveAllClubs(
       buildClubPage([], {
         status_counts: {
-          drafting: 4,
+          drafting: 0,
           submitted: 2,
           under_review: 1,
           changes_requested: 0,
@@ -269,9 +269,11 @@ describe("all clubs (admin)", () => {
     expect(within(summary).getByText("Approved").nextSibling).toHaveTextContent(
       "7",
     );
-    expect(within(summary).getByText("Drafting").nextSibling).toHaveTextContent(
-      "4",
-    );
+    // Drafts are their leads' own until submitted: no card, no tab.
+    expect(within(summary).queryByText("Drafting")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Drafting" }),
+    ).not.toBeInTheDocument();
   });
 
   it("filters by status on the server and starts again from the first page", async () => {

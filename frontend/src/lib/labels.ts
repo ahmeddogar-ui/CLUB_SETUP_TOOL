@@ -32,6 +32,11 @@ export const CLUB_STATUSES: readonly ClubStatus[] = [
   "rejected",
 ];
 
+/** The statuses an admin sees: a drafting club is its lead's own. */
+export const SUBMITTED_CLUB_STATUSES = CLUB_STATUSES.filter(
+  (status) => status !== "drafting",
+);
+
 export function isClubStatus(value: string | null): value is ClubStatus {
   return CLUB_STATUSES.some((status) => status === value);
 }

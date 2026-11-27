@@ -98,8 +98,12 @@ def test_two_clubs_get_independent_requirement_rows(client, db, lead):
 
 
 @pytest.mark.parametrize("viewer", ["lead", "admin"])
-def test_owner_and_admin_can_read_detail(client, request, lead, viewer):
+def test_owner_and_admin_can_read_detail(client, db, request, lead, viewer):
     club = create_club(client, lead)
+    # Admins see a club once it is submitted; a draft is its lead's own.
+    db.get(Clubs, club["id"]).status = ClubStatus.submitted
+    db.commit()
+    club["status"] = "submitted"
     user = request.getfixturevalue(viewer)
 
     response = client.get(f"/api/clubs/{club['id']}", headers=auth(user))
